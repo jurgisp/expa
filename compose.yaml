@@ -1,0 +1,46 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: '3'
+services:
+  ui:
+    build: ./ui
+    restart: unless-stopped
+    # Restricting to localhost, change to 8000:80 to allow external access
+    ports: ["127.0.0.1:${PORT:-8000}:80"]
+    depends_on:
+      - api
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    command:
+      - "-m"
+      - "uvicorn"
+      - "api:app"
+      - "--host=0.0.0.0"
+      - "--port=8010"
+      - "--workers=1"
+    environment:
+      EXPA_DB: postgresql://postgres:postgres@db/postgres
+    expose: ["8010"]
+    depends_on:
+      - db
+
+  db:
+    image: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes: [".db:/var/lib/postgresql/data"]

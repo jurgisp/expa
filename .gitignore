@@ -1,0 +1,9 @@
+.DS_Store
+.vscode
+.db
+.pytest_cache
+__pycache__/
+*.egg-info
+dist
+node_modules
+*.tsbuildinfo
