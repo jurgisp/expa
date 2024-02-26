@@ -19,13 +19,13 @@ import { watchDebounced as watchDebouncedOrig } from "@vueuse/core";
 
 // https://github.com/chartjs/Chart.js/blob/master/src/plugins/plugin.colors.ts
 export const COLORS = [
-  'rgb(54, 162, 235)', // blue
-  'rgb(255, 99, 132)', // red
-  'rgb(75, 192, 192)', // green
-  'rgb(255, 159, 64)', // orange
-  'rgb(153, 102, 255)', // purple
-  'rgb(255, 205, 86)', // yellow
-  'rgb(201, 203, 207)' // grey
+  "rgb(54, 162, 235)", // blue
+  "rgb(255, 99, 132)", // red
+  "rgb(75, 192, 192)", // green
+  "rgb(255, 159, 64)", // orange
+  "rgb(153, 102, 255)", // purple
+  "rgb(255, 205, 86)", // yellow
+  "rgb(201, 203, 207)", // grey
 ];
 
 export function watchDebounced(source, callback, options = { debounce: 300 }) {
@@ -80,9 +80,7 @@ function roundToPrecision(value: number, precision: number) {
 export function parseIntInput(s: string): number | null {
   // Parse while handling shorthand "100k", "10M"
   s = s.trim();
-  if (s === "") {
-    return null;
-  }
+  if (s === "") return null;
   let val = parseInt(s, 10);
   if (s.toLowerCase().endsWith("k")) {
     val = parseInt(s.slice(0, -1), 10) * 1000;
@@ -94,38 +92,15 @@ export function parseIntInput(s: string): number | null {
   return isNaN(val) ? null : val;
 }
 
+export function parseFloatInput(s: string): number | null {
+  s = s.trim();
+  if (s === "") return null;
+  let val = parseFloat(s);
+  return isNaN(val) ? null : val;
+}
+
 export function isDeepEqual(obj1, obj2) {
-  if (obj1 === obj2) {
-    return true;
-  }
-
-  if (
-    typeof obj1 !== "object" ||
-    typeof obj2 !== "object" ||
-    obj1 == null ||
-    obj2 == null
-  ) {
-    return false;
-  }
-
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-
-  if (keys1.length !== keys2.length) {
-    return false;
-  }
-
-  for (let key of keys1) {
-    if (!keys2.includes(key)) {
-      return false;
-    }
-
-    if (!isDeepEqual(obj1[key], obj2[key])) {
-      return false;
-    }
-  }
-
-  return true;
+  return JSON.stringify(obj1) === JSON.stringify(obj2);
 }
 
 export function deepCopy(obj) {

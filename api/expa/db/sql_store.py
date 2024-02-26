@@ -30,7 +30,8 @@ class PgSqlStore:
       max_conn: int = 20,
       log: bool = False,
   ):
-    self.dsn = dsn
+    self.dsn = dsn.replace('postgresql+alloydb://', 'postgresql://')
+    self.alloydb = dsn.startswith('postgresql+alloydb://')
     self.readonly = readonly
     self.max_conn = max_conn
     self.log = log
@@ -47,12 +48,17 @@ class PgSqlStore:
     self._run_metric_cache: set[tuple[int, str]] = set()
 
   async def init(self):
+    settings = {}
+    if self.alloydb:
+      # Use row scan instead of index for fresh rowstore data in columnar query
+      settings['google_columnar_engine.rowstore_scan_mode'] = '1'
     self._pool = await pg.create_pool(
         self.dsn,
         min_size=min(10, self.max_conn),
         max_size=self.max_conn,
         connection_class=LoggingConnection if self.log else pg.Connection,
         command_timeout=300,
+        server_settings=settings
     )
     if not self.readonly:
       await self._init_schema()
@@ -386,6 +392,8 @@ class PgSqlStore:
             COUNT(r.rid) AS run_count,
             MAX(r.last_timestamp) AS last_timestamp,
             MAX(r.max_step) AS max_step,
+            MIN(r.last_timestamp) AS last_timestamp_complete,
+            MIN(r.max_step) AS max_step_complete,
             MAX(p.value) AS note
           FROM expa.experiments x
           LEFT JOIN expa.runs r ON r.xid = x.xid
@@ -558,7 +566,7 @@ class PgSqlStore:
           f"""
           SELECT
             rid,
-            (CEIL({stepcol}::float / {binsize})::integer * {binsize}) AS bin,
+            (CEIL({stepcol}::float / {binsize})::bigint * {binsize}) AS bin,
             MAX({stepcol}) AS step,
             {stepagg}(value) AS value
           FROM expa.scalar_data
@@ -584,7 +592,7 @@ class PgSqlStore:
 
     # Aggregate runs by group
     df = df.merge(runs_df[['rid'] + groupby], on='rid')
-    assert runagg in ('mean', 'min', 'max', 'count')
+    assert runagg in ('mean', 'min', 'max', 'count', 'median')
     df['runs'] = 1
     df = df.groupby(groupby + ['bin'], as_index=False).agg({
         'step': 'max',
@@ -620,11 +628,15 @@ class LoggingConnection(pg.Connection):
 
   async def _with_log(self, func, *args, **kwargs):
     start_time = time.time()
-    result = await func(*args, **kwargs)
-    duration = time.time() - start_time
-    if 'CLOSE ALL' not in args[0]:  # Ignore connection close queries
-      print(f'Query executed in {duration:.3f} sec:\n{args[0]}\n  {args[1:]}')
-    return result
+    try:
+      result = await func(*args, **kwargs)
+      dt = time.time() - start_time
+      if 'CLOSE ALL' not in args[0]:  # Ignore connection close queries
+        print(f'Query: {args[0]}\nargs: {args[1:]}\ntime: {dt:.3f} sec')
+      return result
+    except Exception as e:
+      raise Exception(f'Error in query: {args[0]}\nargs: {args[1:]}') from e
+
 
 
 def clean_float(value: float) -> Optional[float]:

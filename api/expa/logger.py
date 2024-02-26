@@ -19,6 +19,13 @@ import re
 
 from . import client as api_client
 
+DEFAULT_CREDENTIALS = None
+
+
+def set_credentials(credentials):
+  global DEFAULT_CREDENTIALS
+  DEFAULT_CREDENTIALS = credentials
+
 
 class Logger:
 
@@ -29,6 +36,7 @@ class Logger:
       project: str = 'default',
       user: str = '',
       api_url: str = '',
+      credentials=None,
   ):
     assert api_url, 'api_url required'
     self.exp = exp
@@ -43,11 +51,13 @@ class Logger:
       m = re.match(r'pubsub://([^/]+)/([^/]+)', api_url)
       assert m, 'Use pubsub://project/topic for sending data over PubSub'
       gcp_project, topic = m.groups()
-      self._client = pubsub.Client(gcp_project, topic)
+      credentials = credentials or DEFAULT_CREDENTIALS
+      self._client = pubsub.Client(gcp_project, topic, credentials=credentials)
 
     self._nonscalars = set()
 
   def log(self, data: dict[str, Any], step: int):
+    step = int(step)
     data_np = {k: np.asarray(v) for k, v in data.items()}
     scalars = {
         k: v

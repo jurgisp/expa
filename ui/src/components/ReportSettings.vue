@@ -19,62 +19,49 @@ import { ref, computed, watch } from "vue";
 
 import { state } from "@/state";
 import { cmd } from "@/commands";
-import { parseIntInput, watchDebounced } from "@/utils";
+import { watchDebounced } from "@/utils";
 
 import Checkbox from "./elements/Checkbox.vue";
 
-const groupbyInput = ref(state.value.report.groupBy);
-const facetbyInput = ref(state.value.report.facetBy);
-const xminInput = ref((state.value.report.xmin ?? "").toString());
-const xmaxInput = ref((state.value.report.xmax ?? "").toString());
-const yminInput = ref((state.value.report.ymin ?? "").toString());
-const ymaxInput = ref((state.value.report.ymax ?? "").toString());
+const groupbyInput = ref(state.report.groupBy);
+const facetbyInput = ref(state.report.facetBy);
+const xminInput = ref(state.report.xmin);
+const xmaxInput = ref(state.report.xmax);
 
 watch(
   // On report change
-  computed(() => state.value.reportIndex),
+  computed(() => state.reportIndex),
   () => {
     // Update delay-bound fields.
-    // TODO: implement two-way refSync with delay
-    groupbyInput.value = state.value.report.groupBy;
-    facetbyInput.value = state.value.report.facetBy;
-    xminInput.value = (state.value.report.xmin ?? "").toString();
-    xmaxInput.value = (state.value.report.xmax ?? "").toString();
-    yminInput.value = (state.value.report.ymin ?? "").toString();
-    ymaxInput.value = (state.value.report.ymax ?? "").toString();
+    // TODO: implement two-way refSync with delay. Or delay loading not state
+    groupbyInput.value = state.report.groupBy;
+    facetbyInput.value = state.report.facetBy;
+    xminInput.value = state.report.xmin;
+    xmaxInput.value = state.report.xmax;
   }
 );
 
-// TODO: maybe instead of delay-binding to state, we should have delay watch
-// on data load.
 watchDebounced(groupbyInput, (value) => {
-  state.value.report.groupBy = value;
+  state.report.groupBy = value;
 });
 watchDebounced(facetbyInput, (value) => {
-  state.value.report.facetBy = value;
+  state.report.facetBy = value;
 });
 watchDebounced(xminInput, (value) => {
-  state.value.report.xmin = parseIntInput(value);
+  state.report.xmin = value;
 });
 watchDebounced(xmaxInput, (value) => {
-  state.value.report.xmax = parseIntInput(value);
-});
-// yrange applied without delay because it doesn't cause data reload
-watch(yminInput, (value) => {
-  state.value.report.ymin = parseIntInput(value);
-});
-watch(ymaxInput, (value) => {
-  state.value.report.ymax = parseIntInput(value);
+  state.report.xmax = value;
 });
 
 const binsOptions = [20, 50, 100, 200, 500, 1000];
 
 cmd.on("report.settings.toggleLegend", () => {
-  state.value.report.legend = !state.value.report.legend;
+  state.report.legend = !state.report.legend;
 });
 for (let i = 1; i <= 5; i++) {
   cmd.on(`report.settings.bins${i}`, () => {
-    state.value.report.bins = binsOptions[i - 1];
+    state.report.bins = binsOptions[i - 1];
   });
 }
 </script>
@@ -131,13 +118,13 @@ for (let i = 1; i <= 5; i++) {
         <input
           type="text"
           class="text-xs text-black px-1 py-0 w-12"
-          v-model="yminInput"
+          v-model="state.report.ymin"
         />
         -
         <input
           type="text"
           class="text-xs text-black px-1 py-0 w-12"
-          v-model="ymaxInput"
+          v-model="state.report.ymax"
         />
       </div>
     </div>
@@ -149,6 +136,7 @@ for (let i = 1; i <= 5; i++) {
           v-model="state.report.runAgg"
         >
           <option>mean</option>
+          <option>median</option>
           <option>min</option>
           <option>max</option>
           <option>count</option>

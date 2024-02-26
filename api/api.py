@@ -77,6 +77,23 @@ def parse_facetby(facetby: str = fastapi.Query('')) -> list[str]:
   return [v for v in facetby.split(',') if v != '']
 
 
+def parse_filter_steps_from(filter: str) -> Optional[int]:
+  """Matches `steps>1m` filter."""
+  match = re.match(r'^steps>(\d+)(k|m)?$', filter.lower())
+  if not match:
+    return None
+  number, multiplier = match.groups()
+  try:
+    number = int(number)
+  except ValueError:
+    return None
+  if multiplier == 'k':
+    number *= 1000
+  elif multiplier == 'm':
+    number *= 1000000
+  return number
+
+
 ##################
 # App
 ##################
@@ -85,9 +102,10 @@ DSN = os.environ.get(
     'EXPA_DB',
     'postgresql://postgres:postgres@localhost/postgres',
 )
+READONLY = os.environ.get('EXPA_DB_READONLY', 'False') == 'True'
 LOG = True
 
-repo = expa.db.Repository(DSN, log=LOG)
+repo = expa.db.Repository(DSN, readonly=READONLY, log=LOG)
 
 
 @contextlib.asynccontextmanager
@@ -159,14 +177,24 @@ async def get_experiments(project: str, filter: str = '', max_age: int = 0):
   df = await repo.get_experiments(project)
   if not len(df):
     return []
-  if filter:
-    df_byname = filter_regex(df, 'name', filter)
-    df_bynote = filter_regex(df, 'note', filter)
-    df = pd.concat([df_byname, df_bynote]).drop_duplicates()
-  df['age'] = (time.time() - df['last_timestamp'].fillna(0)).astype(int)
-  df['max_step'] = df['max_step'].fillna(0).astype(int)
+  df['age'] = time.time() - df['last_timestamp']
+  df['age_complete'] = time.time() - df['last_timestamp_complete']
+  for col in ['age', 'max_step', 'age_complete', 'max_step_complete']:
+    df[col] = df[col].fillna(0).astype(int)
+
   if max_age:
     df = df[df['age'] < max_age]  # TODO: push down to SQL
+
+  # TODO: generalize to some simple query language?
+  for filt in filter.lower().split(' and '):
+    steps_from = parse_filter_steps_from(filt)
+    if steps_from:
+      df = df[df['max_step'] >= steps_from]
+    elif filt:
+      df_byname = filter_regex(df, 'name', filt)
+      df_bynote = filter_regex(df, 'note', filt)
+      df = pd.concat([df_byname, df_bynote]).drop_duplicates()
+
   df = df.sort_values('created_at', ascending=False)
   return df.to_dict(orient='records')
 

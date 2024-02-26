@@ -25,7 +25,7 @@ const renaming = ref(false);
 const deleting = ref(false);
 
 const reportModified = computed(
-  () => !isDeepEqual(state.value.report, reports.value[state.value.reportIndex])
+  () => !isDeepEqual(state.report, reports.value[state.reportIndex])
 );
 
 function selectReport(ix: number) {
@@ -34,37 +34,37 @@ function selectReport(ix: number) {
   }
   cancelDelete();
   // Discarding unsaved changes
-  state.value.reportIndex = ix;
-  state.value.report = deepCopy(reports.value[ix]);
+  state.reportIndex = ix;
+  state.report = deepCopy(reports.value[ix]);
 }
 
 async function saveReport() {
-  if (state.value.reportIndex == 0) {
+  if (state.reportIndex == 0) {
     // If saving "new" -> add
     await saveNewReport(generateNewName());
   } else {
     // If saving previously saved -> overwrite
-    reports.value[state.value.reportIndex] = deepCopy(state.value.report);
+    reports.value[state.reportIndex] = deepCopy(state.report);
   }
 }
 
 async function saveNewReport(name?: string) {
   if (name) {
-    state.value.report.name = name;
+    state.report.name = name;
   }
-  reports.value.push(deepCopy(state.value.report));
-  state.value.reportIndex = reports.value.length - 1;
+  reports.value.splice(state.reportIndex + 1, 0, deepCopy(state.report));
+  state.reportIndex = state.reportIndex + 1;
   await nextTick();
   startRename();
 }
 
 function deleteReport() {
-  if (state.value.reportIndex == 0) {
+  if (state.reportIndex == 0) {
     console.error("Can not delete first report");
     return;
   }
-  reports.value.splice(state.value.reportIndex, 1);
-  selectReport(state.value.reportIndex - 1);
+  reports.value.splice(state.reportIndex, 1);
+  selectReport(state.reportIndex - 1);
 }
 
 function generateNewName() {
@@ -78,53 +78,46 @@ function generateNewName() {
 }
 
 function startRename() {
-  if (state.value.reportIndex == 0) return;
+  if (state.reportIndex == 0) return;
   renaming.value = true;
 }
 function finishRename() {
-  if (state.value.reportIndex == 0) return;
+  if (state.reportIndex == 0) return;
   renaming.value = false;
   // Name is auto-saved
-  reports.value[state.value.reportIndex].name = state.value.report.name;
+  reports.value[state.reportIndex].name = state.report.name;
 }
 
 function startDelete() {
-  if (state.value.reportIndex == 0) return;
+  if (state.reportIndex == 0) return;
   deleting.value = true;
 }
 function cancelDelete() {
   deleting.value = false;
 }
 function confirmDelete() {
-  if (state.value.reportIndex == 0) return;
+  if (state.reportIndex == 0) return;
   deleting.value = false;
   deleteReport();
 }
 
 function moveReportDown() {
-  const ix = state.value.reportIndex;
+  const ix = state.reportIndex;
   if (ix == 0 || ix == reports.value.length - 1) return;
   const [report] = reports.value.splice(ix, 1);
   reports.value.splice(ix + 1, 0, report);
-  state.value.reportIndex += 1;
+  state.reportIndex += 1;
 }
 function moveReportUp() {
-  const ix = state.value.reportIndex;
+  const ix = state.reportIndex;
   if (ix == 0 || ix == 1) return;
   const [report] = reports.value.splice(ix, 1);
   reports.value.splice(ix - 1, 0, report);
-  state.value.reportIndex -= 1;
+  state.reportIndex -= 1;
 }
 
-if (import.meta.env.DEV) {
-  // DEBUG: preselect first saved
-  if (reports.value.length > 0) {
-    selectReport(1);
-  }
-}
-
-cmd.on("nextReport", () => selectReport(state.value.reportIndex + 1));
-cmd.on("prevReport", () => selectReport(state.value.reportIndex - 1));
+cmd.on("nextReport", () => selectReport(state.reportIndex + 1));
+cmd.on("prevReport", () => selectReport(state.reportIndex - 1));
 cmd.on("saveReport", saveReport);
 cmd.on("saveNewReport", saveNewReport);
 cmd.on("deleteReport", () =>
@@ -135,7 +128,7 @@ cmd.on("moveReportUp", moveReportUp);
 </script>
 
 <template>
-  <div class="h-full w-full overflow-scroll bg-slate-200 text-sm text-gray-600">
+  <div class="overflow-auto bg-slate-200 text-sm text-gray-600">
     <div>
       <div v-for="(rep, ix) in reports">
         <!-- Selected report -->
@@ -143,7 +136,7 @@ cmd.on("moveReportUp", moveReportUp);
           v-if="ix == state.reportIndex"
           class="p-1 w-full border-b border-slate-400 bg-white flex"
         >
-          <div class="grow whitespace-nowrap overflow-scroll">
+          <div class="grow whitespace-nowrap overflow-auto">
             <span v-if="!renaming" @click.stop="startRename()">
               {{ state.report.name }}
             </span>

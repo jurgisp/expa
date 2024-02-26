@@ -15,11 +15,11 @@
 -->
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { Line } from "vue-chartjs";
 import { type ChartOptions } from "chart.js";
 
-import { state } from "@/state";
+import { stateComp } from "@/state";
 import { formatSteps, COLORS } from "@/utils";
 
 const props = defineProps<{ data: any }>();
@@ -58,18 +58,18 @@ const chartOptions = computed(() => {
           maxRotation: 0,
           callback: (x) => formatSteps(x),
         },
-        min: state.value.report.xmin ?? undefined,
-        max: state.value.report.xmax ?? undefined,
+        min: stateComp.report.xmin ?? undefined,
+        max: stateComp.report.xmax ?? undefined,
         // title: {
-        //   display: state.value.report.xaxis != "step",
-        //   text: {"step": "steps", "runtime": "seconds"}[state.value.report.xaxis]
+        //   display: state.report.xaxis != "step",
+        //   text: {"step": "steps", "runtime": "seconds"}[state.report.xaxis]
         // },
       },
       y: {
         type: "linear",
         grace: "0%",
-        min: state.value.report.ymin ?? undefined,
-        max: state.value.report.ymax ?? undefined,
+        min: stateComp.report.ymin ?? undefined,
+        max: stateComp.report.ymax ?? undefined,
       },
     },
     interaction: {

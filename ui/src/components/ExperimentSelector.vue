@@ -33,36 +33,33 @@ const filterElement = ref(null as HTMLInputElement | null);
 
 // Running checkbox
 const runningMaxAge = 300;
-const running = ref(import.meta.env.DEV);  // DEBUG: defaults to running
+const running = ref(false);
 const age = computed(() => (running.value ? runningMaxAge : 0));
 
+// Complete stats checkbox
+const statsComplete = ref(false);
+
 // Experiment selection
-const selected = ref([] as number[]);
-watch(selected, (newSelected) => {
-  state.value.experiments = [...newSelected].sort();
+const selected = computed({
+  get: () => state.experiments,
+  set: (value) => (state.experiments = value),
 });
 
 // Data
 const { data, error, isFetching, refetch } = useQuery({
-  queryKey: ["experiments", filter, age],
-  queryFn: () => getExperiments(filter.value, age.value),
+  queryKey: ["experiments", computed(() => state.project), filter, age],
+  queryFn: () => getExperiments(state.project, filter.value, age.value),
 });
 watch(data, (data) => {
   if (data) {
     // Deselect those that are not in the new list.
     const currentSelected = new Set([...selected.value]);
-    const newExperiments = data.data.map((r) => r.xid);
+    const newExperiments = data.data.map((r) => r.xid.toString());
     const newSelected = newExperiments
       .filter((r1) => currentSelected.has(r1))
       .sort();
     if (selected.value.join("|") != newSelected.join("|")) {
       selected.value = newSelected;
-    }
-    if (import.meta.env.DEV) {
-      // DEBUG: select first by default
-      if (currentSelected.size == 0 && newExperiments.length > 0) {
-        selected.value = [newExperiments[0]];
-      }
     }
   }
 });
@@ -77,43 +74,14 @@ function triggerCheckbox(value) {
       : [...selected.value, value];
 }
 
-// function selectPrev() {
-//   if (!data || !data.value || data.value.data.length == 0) {
-//     return;
-//   }
-//   const exps = data.value.data.map((r) => r.xid);
-//   if (selected.value.length == 0) {
-//     selected.value = [exps[exps.length - 1]];
-//   } else if (selected.value.length == 1) {
-//     const ix = exps.indexOf(selected.value[0]) - 1;
-//     if (ix >= 0) {
-//       selected.value = [exps[ix]];
-//     }
-//   }
-// }
-
-// function selectNext() {
-//   if (!data || !data.value || data.value.data.length == 0) {
-//     return;
-//   }
-//   const exps = data.value.data.map((r) => r.xid);
-//   if (selected.value.length == 0) {
-//     selected.value = [exps[0]];
-//   } else if (selected.value.length == 1) {
-//     const ix = exps.indexOf(selected.value[0]) + 1;
-//     if (ix < exps.length) {
-//       selected.value = [exps[ix]];
-//     }
-//   }
-// }
-
 cmd.on("refresh", refetch);
-// cmd.on("prevExperiment", selectPrev);
-// cmd.on("nextExperiment", selectNext);
+cmd.on("experiments.toggleRunning", () => {
+  running.value = !running.value;
+});
 </script>
 
 <template>
-  <div class="h-full w-full overflow-scroll bg-slate-200 text-sm">
+  <div class="bg-slate-200 text-sm flex flex-col">
     <!-- Filters -->
     <div class="border-b border-slate-400 text-xs p-1">
       <div>
@@ -125,12 +93,13 @@ cmd.on("refresh", refetch);
           ref="filterElement"
         />
       </div>
-      <div class="">
+      <div class="flex flex-wrap gap-2">
         <Checkbox label="Running" v-model="running" />
+        <Checkbox label="Complete stats" v-model="statsComplete" />
       </div>
     </div>
     <!-- Experiments -->
-    <div class="bg-gray-100">
+    <div class="bg-gray-100 overflow-auto">
       <div v-if="error" class="bg-red-200 p-1 text-xs">
         {{ error.message }}
       </div>
@@ -142,15 +111,15 @@ cmd.on("refresh", refetch);
           v-for="exp in data.data"
           :key="exp.xid"
           class="whitespace-nowrap px-1 border-b border-gray-300 cursor-pointer"
-          @click.stop="selected = [exp.xid]"
+          @click.stop="selected = [exp.xid.toString()]"
         >
           <div>
             <input
               type="checkbox"
-              :value="exp.xid"
+              :value="exp.xid.toString()"
               v-model="selected"
               class="checkbox"
-              @click.stop="triggerCheckbox(exp.xid)"
+              @click.stop="triggerCheckbox(exp.xid.toString())"
             />
             <span>{{ exp.name }}</span>
           </div>
@@ -159,9 +128,17 @@ cmd.on("refresh", refetch);
           </div>
           <div class="text-xs text-gray-400 pl-4">
             <span> {{ exp.run_count }} runs / </span>
-            <span>{{ formatSteps(exp.max_step) }} steps / </span>
-            <span :class="{ 'text-green-600': exp.age < 300 }">
-              {{ formatAge(exp.age) }} ago
+            <span v-if="!statsComplete">
+              <span>{{ formatSteps(exp.max_step) }} steps / </span>
+              <span :class="{ 'text-green-600': exp.age < 300 }">
+                {{ formatAge(exp.age) }} ago
+              </span>
+            </span>
+            <span v-else>
+              <span>{{ formatSteps(exp.max_step_complete) }} steps / </span>
+              <span :class="{ 'text-green-600': exp.age_complete < 300 }">
+                {{ formatAge(exp.age_complete) }} ago
+              </span>
             </span>
           </div>
         </div>

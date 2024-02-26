@@ -19,8 +19,8 @@ from . import pubsub
 class Client:
   """GCP PubSub-based client for writing data only."""
 
-  def __init__(self, project: str, topic: str):
-    self._pub = pubsub.Publisher(project, topic)
+  def __init__(self, project: str, topic: str, credentials):
+    self._pub = pubsub.Publisher(project, topic, credentials)
 
   def log_metrics(
       self,

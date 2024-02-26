@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { ref, computed, watchEffect, watch } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import { state, experimentsJoin } from "@/state";
+import { state, stateComp } from "@/state";
 import { getMetrics } from "@/api";
 import { cmd } from "@/commands";
 import { watchDebounced } from "@/utils";
@@ -37,39 +37,48 @@ watchDebounced(filterInput, (newFilter) => {
 });
 
 function resetFilter() {
-  const v = state.value.reportIndex == 0 ? initFilter : "";
+  const v = state.reportIndex == 0 ? initFilter : "";
   filter.value = v;
   filterInput.value = v;
 }
 
 const enabled = computed(
-  () => state.value.experiments.length > 0 && filter.value.length > 1
+  () => state.experiments.length > 0 && filter.value.length > 1
 );
 
 const {
   data: response,
   error,
   isPending,
+  refetch,
 } = useQuery({
-  queryKey: ["metrics", experimentsJoin, filter, limit],
-  queryFn: () => getMetrics(experimentsJoin.value, filter.value, limit.value),
+  queryKey: [
+    "metrics",
+    computed(() => state.project),
+    computed(() => stateComp.xids),
+    filter,
+    limit,
+  ],
+  queryFn: () =>
+    getMetrics(state.project, stateComp.xids, filter.value, limit.value),
   enabled: enabled,
 });
 
 watchEffect(() => {
   if (!enabled.value) {
-    state.value.metrics = [];
+    state.metrics = [];
   } else if (response.value) {
-    state.value.metrics = response.value.data.metrics;
+    state.metrics = response.value.data.metrics;
   }
 });
 
 watch(
   // On report change
-  computed(() => state.value.reportIndex),
+  computed(() => state.reportIndex),
   () => resetFilter()
 );
 
+cmd.on("refresh", refetch);
 cmd.on("focusMetricSearch", () => filterElement.value?.focus());
 </script>
 
@@ -84,7 +93,9 @@ cmd.on("focusMetricSearch", () => filterElement.value?.focus());
     />
   </div>
   <div class="text-gray-400">
-    <span v-if="!enabled"> Select experiment and enter query (.* for all). </span>
+    <span v-if="!enabled">
+      Select experiment and enter query (.* for all).
+    </span>
     <span v-else-if="isPending"> Loading... </span>
     <span v-else-if="error" class="text-red-500">
       Error loading metrics: {{ error.message }}

@@ -18,7 +18,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 
-import { state, experimentsJoin, runsJoin } from "@/state";
+import { state, stateComp } from "@/state";
 import { getPlot } from "@/api";
 import { cmd } from "@/commands";
 import { COLORS } from "@/utils";
@@ -35,7 +35,7 @@ const props = defineProps<{
 const initData = [{ facet: "", groups: [] as any[] }];
 const data = ref(initData);
 
-const enabled = computed(() => experimentsJoin.value.length > 0);
+const enabled = computed(() => stateComp.xids.length > 0);
 
 const {
   data: response,
@@ -45,33 +45,35 @@ const {
 } = useQuery({
   queryKey: [
     "plot",
+    computed(() => state.project),
     props.metric,
-    experimentsJoin,
-    runsJoin,
-    computed(() => state.value.report.groupBy),
-    computed(() => state.value.report.facetBy),
-    computed(() => state.value.report.bins),
-    computed(() => state.value.report.xaxis),
-    computed(() => state.value.report.xmin),
-    computed(() => state.value.report.xmax),
-    computed(() => state.value.report.stepAgg),
-    computed(() => state.value.report.runAgg),
-    computed(() => state.value.report.complete),
+    computed(() => stateComp.xids),
+    computed(() => stateComp.rids),
+    computed(() => state.report.groupBy),
+    computed(() => state.report.facetBy),
+    computed(() => state.report.bins),
+    computed(() => state.report.xaxis),
+    computed(() => stateComp.report.xmin),
+    computed(() => stateComp.report.xmax),
+    computed(() => state.report.stepAgg),
+    computed(() => state.report.runAgg),
+    computed(() => state.report.complete),
   ],
   queryFn: () =>
     getPlot(
+      state.project,
       props.metric,
-      experimentsJoin.value,
-      runsJoin.value,
-      state.value.report.groupBy,
-      state.value.report.facetBy,
-      state.value.report.bins,
-      state.value.report.xaxis,
-      state.value.report.xmin,
-      state.value.report.xmax,
-      state.value.report.stepAgg,
-      state.value.report.runAgg,
-      state.value.report.complete
+      stateComp.xids,
+      stateComp.rids,
+      state.report.groupBy,
+      state.report.facetBy,
+      state.report.bins,
+      state.report.xaxis,
+      stateComp.report.xmin,
+      stateComp.report.xmax,
+      state.report.stepAgg,
+      state.report.runAgg,
+      state.report.complete
     ),
   // Do not cache plot data.
   // If we do, we get update-refetch-update on run change, which is annoying.
@@ -139,7 +141,8 @@ onBeforeUnmount(() => cmd.off("refresh", refetch));
     </div>
     <div class="mt-1 flex flex-col items-center">
       <p class="w-64 text-center truncate font-bold" :title="metric">
-        {{ metric }}
+        <span v-if="state.report.runAgg == 'mean'">{{ metric }}</span>
+        <span v-else>{{ state.report.runAgg }}({{ metric }})</span>
       </p>
     </div>
     <!-- Plots -->

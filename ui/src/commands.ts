@@ -45,16 +45,12 @@ bindKey(
 
 defineCommand("refresh", "Cmd+Enter");
 
-// defineCommand("nextExperiment", "Cmd+ArrowRight");
-// defineCommand("prevExperiment", "Cmd+ArrowLeft");
-
 defineCommand("nextReport", "Cmd+ArrowDown");
 defineCommand("prevReport", "Cmd+ArrowUp");
 defineCommand("moveReportDown", "Cmd+Shift+ArrowDown");
 defineCommand("moveReportUp", "Cmd+Shift+ArrowUp");
 defineCommand("saveReport", "Cmd+s");
 defineCommand("deleteReport", "Cmd+d");
-
 
 defineCommand("focusNextCard", "ArrowRight");
 defineCommand("focusPrevCard", "ArrowLeft");
@@ -71,3 +67,5 @@ defineCommand("report.settings.bins2", "2");
 defineCommand("report.settings.bins3", "3");
 defineCommand("report.settings.bins4", "4");
 defineCommand("report.settings.bins5", "5");
+
+defineCommand("experiments.toggleRunning", "r");

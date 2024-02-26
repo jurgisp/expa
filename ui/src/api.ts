@@ -17,30 +17,39 @@
 import axios, { type AxiosInstance } from "axios";
 
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,  // see .env.development
-  timeout: 10000,
+  baseURL: import.meta.env.VITE_API_URL, // see .env.development
+  timeout: 30000,
 });
-const project = "default";
 
-export function getExperiments(filter: string, max_age: number) {
+export function getExperiments(
+  project: string,
+  filter: string,
+  max_age: number
+) {
   return api.get("/experiments", {
     params: { project, filter, max_age },
   });
 }
 
-export function getRuns(xids: string) {
+export function getRuns(project: string, xids: string) {
   return api.get("/runs", {
     params: { project, xids },
   });
 }
 
-export function getMetrics(xids: string, filter: string, limit: number) {
+export function getMetrics(
+  project: string,
+  xids: string,
+  filter: string,
+  limit: number
+) {
   return api.get("/metrics", {
     params: { project, xids, filter, limit },
   });
 }
 
 export function getPlot(
+  project: string,
   metric: string,
   xids: string,
   rids: string | null,

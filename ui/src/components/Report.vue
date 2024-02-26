@@ -24,10 +24,10 @@ import MetricsFilter from "./MetricsFilter.vue";
 import ReportSettings from "./ReportSettings.vue";
 import Card from "./Card.vue";
 
-const pinnedCards = computed(() => state.value.report.cards);
+const pinnedCards = computed(() => state.report.cards);
 const unpinnedCards = computed(() => {
   const pinned = new Set(pinnedCards.value.map((card) => card.metric));
-  return state.value.metrics.filter((metric) => !pinned.has(metric.metric));
+  return state.metrics.filter((metric) => !pinned.has(metric.metric));
 });
 const focusedMetric = ref(null as string | null);
 
@@ -45,13 +45,13 @@ function addRemoveCard(metric: string | null) {
   let ix = getUnpinnedIndex(metric);
   if (ix !== null) {
     // Unpinned - add
-    state.value.report.cards.push(unpinnedCards.value[ix]);
+    state.report.cards.push(unpinnedCards.value[ix]);
     return;
   }
   ix = getPinnedIndex(metric);
   if (ix !== null) {
     // Pinned - remove
-    state.value.report.cards.splice(ix, 1);
+    state.report.cards.splice(ix, 1);
     return;
   }
 }
@@ -59,15 +59,15 @@ function addRemoveCard(metric: string | null) {
 function moveCardUp(metric: string | null) {
   const ix = getPinnedIndex(metric);
   if (ix === null || ix === 0) return;
-  const [card] = state.value.report.cards.splice(ix, 1);
-  state.value.report.cards.splice(ix - 1, 0, card);
+  const [card] = state.report.cards.splice(ix, 1);
+  state.report.cards.splice(ix - 1, 0, card);
 }
 
 function moveCardDown(metric: string | null) {
   const ix = getPinnedIndex(metric);
   if (ix === null || ix === pinnedCards.value.length - 1) return;
-  const [card] = state.value.report.cards.splice(ix, 1);
-  state.value.report.cards.splice(ix + 1, 0, card);
+  const [card] = state.report.cards.splice(ix, 1);
+  state.report.cards.splice(ix + 1, 0, card);
 }
 
 function focusNextCard() {
@@ -129,7 +129,7 @@ function unfocusCard() {
 
 watch(
   // On report change
-  computed(() => state.value.reportIndex),
+  computed(() => state.reportIndex),
   () => unfocusCard()
 );
 
@@ -142,14 +142,14 @@ cmd.on("deselect", unfocusCard);
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col">
+  <div class="flex flex-col">
     <div class="p-1 bg-slate-200 border-b border-slate-400">
       <MetricsFilter />
     </div>
     <div class="bg-slate-200 border-b border-slate-400">
       <ReportSettings />
     </div>
-    <div class="flex-grow overflow-scroll bg-gray-100">
+    <div class="flex-grow overflow-auto bg-gray-100">
       <!-- Pinned cards -->
       <div
         class="flex flex-wrap gap-1 p-1"

@@ -18,29 +18,36 @@
 import { ref, watch, computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 
-import { state, experimentsJoin } from "@/state";
+import { state, stateComp } from "@/state";
 import { getRuns } from "@/api";
 import { cmd } from "@/commands";
 import { regexFilter, watchDebounced } from "@/utils";
 
-const multiExp = computed(() => state.value.experiments.length > 1);
+const multiExp = computed(() => state.experiments.length > 1);
 
 // Filter box
 const filter = ref("");
 const filterElement = ref(null as HTMLInputElement | null);
-watch(experimentsJoin, () => {
-  // Reset on experiment change
-  // TODO: if something is selected and experiment changes, the rid filter
-  // is applied to new experiment with previously selected rids, until new
-  // runs are loaded. We should clear runs right away, but it's tricky.
-  filter.value = "";
-});
+watch(
+  () => state.experiments,
+  () => {
+    // Reset on experiment change
+    // TODO: if something is selected and experiment changes, the rid filter
+    // is applied to new experiment with previously selected rids, until new
+    // runs are loaded. We should clear runs right away, but it's tricky.
+    filter.value = "";
+  }
+);
 
 // Data
 // TODO: disable if no experiment selected
 const { data, error, isFetching, refetch } = useQuery({
-  queryKey: ["runs", experimentsJoin],
-  queryFn: () => getRuns(experimentsJoin.value),
+  queryKey: [
+    "runs",
+    computed(() => state.project),
+    computed(() => stateComp.xids),
+  ],
+  queryFn: () => getRuns(state.project, stateComp.xids),
 });
 const runsAll = computed(() =>
   data.value ? (data.value.data as any[]) : null
@@ -56,28 +63,49 @@ const runsFiltered = computed(() => {
 });
 
 // Run selection
-const selected = ref([] as number[]);
+const selected = computed({
+  get: () => {
+    if (state.runs) {
+      // Filtered or selected runs
+      return state.runs;
+    } else {
+      // All runs
+      return runsAll.value?.map((r) => String(r.rid)) ?? [];
+    }
+  },
+  set: (rids) => {
+    if (runsAll.value && rids.length < runsAll.value.length) {
+      // Filtered or selected runs
+      state.runs = [...rids].sort();
+    } else {
+      // All runs
+      state.runs = null;
+    }
+  },
+});
+
 watch(runsFiltered, (runs, runsPrev) => {
-  const rids = runs?.map((r) => r.rid);
-  const ridsPrev = runsPrev?.map((r) => r.rid);
+  const rids = runs?.map((r) => String(r.rid));
+  const ridsPrev = runsPrev?.map((r) => String(r.rid));
   if (rids && rids?.join(",") !== ridsPrev?.join(",")) {
     // Select all on filter change
-    selected.value = rids;
+    if (!ridsPrev && state.runs) {
+      // One exception: if selection exists without ridsPrev, means this is
+      // preselecting from URL. Don't clear  it
+    } else {
+      selected.value = rids;
+    }
   }
-});
-watchDebounced(selected, (rids) => {
-  if (runsAll.value && rids.length < runsAll.value.length) {
-    // Filter or selection applied
-    state.value.runs = [...rids].sort();
-  } else {
-    // No filter
-    state.value.runs = null;
+  if (!rids) {
+    // Clear selection while runs are loading after switching experiment.
+    // This does not run on first load, so does not clear URL rids.
+    selected.value = [];
   }
 });
 
 // UI
 
-function triggerCheckbox(value) {
+function triggerCheckbox(value: string) {
   // Emulates the effect of clicking the checkbox, since we override
   // the default click event
   const ix = selected.value.indexOf(value);
@@ -88,7 +116,7 @@ function triggerCheckbox(value) {
   if (newSelected.length == 0) {
     // Deselecting all => Select all
     if (runsFiltered.value && runsFiltered.value.length > 0) {
-      newSelected = runsFiltered.value.map((r) => r.rid);
+      newSelected = runsFiltered.value.map((r) => String(r.rid));
     }
   }
   selected.value = newSelected;
@@ -99,7 +127,7 @@ cmd.on("focusRunFilter", () => filterElement.value?.focus());
 </script>
 
 <template>
-  <div class="h-full w-full overflow-scroll bg-slate-200 text-sm">
+  <div class="bg-slate-200 text-sm flex flex-col">
     <!-- Filters -->
     <div class="border-b border-slate-400 text-xs p-1">
       <div>
@@ -113,7 +141,7 @@ cmd.on("focusRunFilter", () => filterElement.value?.focus());
       </div>
     </div>
     <!-- Runs -->
-    <div class="bg-gray-100">
+    <div class="bg-gray-100 overflow-auto">
       <div v-if="error" class="bg-red-200 p-1 text-xs">
         {{ error.message }}
       </div>
@@ -125,19 +153,17 @@ cmd.on("focusRunFilter", () => filterElement.value?.focus());
           v-for="run in runsFiltered"
           :key="run.rid"
           class="whitespace-nowrap px-1 border-b border-gray-300 cursor-pointer"
-          @click.stop="selected = [run.rid]"
+          @click.stop="selected = [String(run.rid)]"
         >
           <div class="text-xs py-1">
             <input
               type="checkbox"
-              :value="run.rid"
+              :value="String(run.rid)"
               v-model="selected"
               class="checkbox"
-              @click.stop="triggerCheckbox(run.rid)"
+              @click.stop="triggerCheckbox(String(run.rid))"
             />
-            <span v-if="multiExp" class="text-gray-400">
-              {{ run.exp }} /
-            </span>
+            <span v-if="multiExp" class="text-gray-400"> {{ run.exp }} / </span>
             <span>{{ run.name }}</span>
           </div>
           <!-- <div class="text-xs text-gray-400 pl-4">

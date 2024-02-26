@@ -99,8 +99,8 @@ class ParamsMessage:
 
 class Publisher:
 
-  def __init__(self, project: str, topic: str):
-    self._pub = pubsub_v1.PublisherClient()
+  def __init__(self, project: str, topic: str, credentials=None):
+    self._pub = pubsub_v1.PublisherClient(credentials=credentials)
     self._topic = pubsub_v1.PublisherClient.topic_path(project, topic)
     self._pending: list[publisher_futures.Future] = []
 
@@ -157,9 +157,9 @@ class Subscriber:
           print(f'Skipping unknown type {msg.attributes}: {len(msg.data)}')
           msg.ack()
 
-      except:
+      except Exception as ex:
         msg.nack()
-        raise  # TODO: should keep processing, ignoring the message?
+        print(f'ERROR processing message: {ex}')
 
     flow = pubsub_v1.types.FlowControl(max_messages=parallel)
     job = self._sub.subscribe(self._sub_path, callback, flow_control=flow)

@@ -44,20 +44,14 @@ import RunSelector from "./components/RunSelector.vue";
     <!-- TODO: dynamically resize sidebars, some leads:
     https://codereview.stackexchange.com/questions/232651/resizable-containers-with-vuejs
     https://github.com/justcaliturner/vue-resizer -->
-    <div id="body" class="grow flex text-xs overflow-clip">
-      <div class="flex-none w-40 overflow-clip">
-        <ReportSelector />
-      </div>
-      <div class="grow border-x border-slate-400 overflow-clip">
-        <Report />
-      </div>
-      <div class="flex-none w-[350px] overflow-clip">
-        <div class="h-1/2 border-b border-slate-400">
-          <ExperimentSelector />
-        </div>
-        <div class="h-1/2">
-          <RunSelector />
-        </div>
+    <div id="body" class="grow min-h-[400px] flex text-xs">
+      <ReportSelector class="flex-none w-40" />
+      <Report class="grow border-x border-slate-400" />
+      <div class="flex-none w-[350px] flex flex-col">
+        <ExperimentSelector
+          class="basis-1/2 grow min-h-[100px] border-b border-slate-400"
+        />
+        <RunSelector class="basis-1/2 grow min-h-[100px]" />
       </div>
     </div>
   </div>
