@@ -61,7 +61,6 @@ defineCommand("moveCardUp", "Shift+ArrowLeft");
 defineCommand("focusMetricSearch", "/");
 defineCommand("focusRunFilter", "Cmd+/");
 
-defineCommand("report.settings.toggleLegend", "l");
 defineCommand("report.settings.bins1", "1");
 defineCommand("report.settings.bins2", "2");
 defineCommand("report.settings.bins3", "3");

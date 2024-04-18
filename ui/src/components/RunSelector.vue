@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { state, stateComp } from "@/state";
 import { getRuns } from "@/api";
 import { cmd } from "@/commands";
-import { regexFilter, watchDebounced } from "@/utils";
+import { regexFilter } from "@/utils";
 
 const multiExp = computed(() => state.experiments.length > 1);
 
@@ -49,9 +49,7 @@ const { data, error, isFetching, refetch } = useQuery({
   ],
   queryFn: () => getRuns(state.project, stateComp.xids),
 });
-const runsAll = computed(() =>
-  data.value ? (data.value.data as any[]) : null
-);
+const runsAll = computed(() => (data.value ? data.value.data.runs : null));
 const runsFiltered = computed(() => {
   let runs = runsAll.value;
   if (!runs) return null;
@@ -70,7 +68,7 @@ const selected = computed({
       return state.runs;
     } else {
       // All runs
-      return runsAll.value?.map((r) => String(r.rid)) ?? [];
+      return runsAll.value?.map((r) => r.rid.toString()) ?? [];
     }
   },
   set: (rids) => {
@@ -85,8 +83,8 @@ const selected = computed({
 });
 
 watch(runsFiltered, (runs, runsPrev) => {
-  const rids = runs?.map((r) => String(r.rid));
-  const ridsPrev = runsPrev?.map((r) => String(r.rid));
+  const rids = runs?.map((r) => r.rid.toString());
+  const ridsPrev = runsPrev?.map((r) => r.rid.toString());
   if (rids && rids?.join(",") !== ridsPrev?.join(",")) {
     // Select all on filter change
     if (!ridsPrev && state.runs) {
@@ -116,7 +114,7 @@ function triggerCheckbox(value: string) {
   if (newSelected.length == 0) {
     // Deselecting all => Select all
     if (runsFiltered.value && runsFiltered.value.length > 0) {
-      newSelected = runsFiltered.value.map((r) => String(r.rid));
+      newSelected = runsFiltered.value.map((r) => r.rid.toString());
     }
   }
   selected.value = newSelected;
@@ -153,15 +151,15 @@ cmd.on("focusRunFilter", () => filterElement.value?.focus());
           v-for="run in runsFiltered"
           :key="run.rid"
           class="whitespace-nowrap px-1 border-b border-gray-300 cursor-pointer"
-          @click.stop="selected = [String(run.rid)]"
+          @click.stop="selected = [run.rid.toString()]"
         >
           <div class="text-xs py-1">
             <input
               type="checkbox"
-              :value="String(run.rid)"
+              :value="run.rid.toString()"
               v-model="selected"
               class="checkbox"
-              @click.stop="triggerCheckbox(String(run.rid))"
+              @click.stop="triggerCheckbox(run.rid.toString())"
             />
             <span v-if="multiExp" class="text-gray-400"> {{ run.exp }} / </span>
             <span>{{ run.name }}</span>

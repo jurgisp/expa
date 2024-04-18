@@ -54,7 +54,7 @@ watch(data, (data) => {
   if (data) {
     // Deselect those that are not in the new list.
     const currentSelected = new Set([...selected.value]);
-    const newExperiments = data.data.map((r) => r.xid.toString());
+    const newExperiments = data.data.experiments.map((r) => r.xid.toString());
     const newSelected = newExperiments
       .filter((r1) => currentSelected.has(r1))
       .sort();
@@ -108,7 +108,7 @@ cmd.on("experiments.toggleRunning", () => {
       </div>
       <div v-if="data">
         <div
-          v-for="exp in data.data"
+          v-for="exp in data.data.experiments"
           :key="exp.xid"
           class="whitespace-nowrap px-1 border-b border-gray-300 cursor-pointer"
           @click.stop="selected = [exp.xid.toString()]"

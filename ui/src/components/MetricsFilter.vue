@@ -23,27 +23,25 @@ import { cmd } from "@/commands";
 import { watchDebounced } from "@/utils";
 
 const defaultLimit = 25;
-const initFilter = ".*";
 
-const filterInput = ref(initFilter);
-const filter = ref(initFilter);
+const queryInput = ref(state.query);
 const limit = ref(defaultLimit);
 
 const filterElement = ref(null as HTMLInputElement | null);
 
-watchDebounced(filterInput, (newFilter) => {
-  filter.value = newFilter;
+watchDebounced(queryInput, (query) => {
+  state.query = query;
   limit.value = defaultLimit;
 });
 
 function resetFilter() {
-  const v = state.reportIndex == 0 ? initFilter : "";
-  filter.value = v;
-  filterInput.value = v;
+  const v = state.reportIndex == 0 ? ".*" : "";
+  state.query = v;
+  queryInput.value = v;
 }
 
 const enabled = computed(
-  () => state.experiments.length > 0 && filter.value.length > 1
+  () => state.experiments.length > 0 && state.query.length > 1
 );
 
 const {
@@ -56,11 +54,11 @@ const {
     "metrics",
     computed(() => state.project),
     computed(() => stateComp.xids),
-    filter,
+    computed(() => state.query),
     limit,
   ],
   queryFn: () =>
-    getMetrics(state.project, stateComp.xids, filter.value, limit.value),
+    getMetrics(state.project, stateComp.xids, state.query, limit.value),
   enabled: enabled,
 });
 
@@ -86,7 +84,7 @@ cmd.on("focusMetricSearch", () => filterElement.value?.focus());
   <div>
     <input
       type="search"
-      v-model="filterInput"
+      v-model="queryInput"
       class="p-1 text-xs w-full"
       placeholder="Metric search"
       ref="filterElement"

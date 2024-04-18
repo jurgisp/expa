@@ -20,8 +20,8 @@ import { useQuery } from "@tanstack/vue-query";
 
 import { state, stateComp } from "@/state";
 import { getPlot } from "@/api";
+import type { PlotResponse } from "@/api";
 import { cmd } from "@/commands";
-import { COLORS } from "@/utils";
 
 import CardPlot from "./CardPlot.vue";
 
@@ -32,9 +32,18 @@ const props = defineProps<{
   pinnedLast?: boolean;
 }>();
 
-const initData = [{ facet: "", groups: [] as any[] }];
-const data = ref(initData);
+const emit = defineEmits([
+  "add",
+  "remove",
+  "moveUp",
+  "moveDown",
+  "dataUpdated",
+  "showTooltip",
+  "hideTooltip",
+]);
 
+const initData: PlotResponse = { facets: [{ facet: "", groups: [] }] };
+const data = ref(initData);
 const enabled = computed(() => stateComp.xids.length > 0);
 
 const {
@@ -67,7 +76,7 @@ const {
       stateComp.rids,
       state.report.groupBy,
       state.report.facetBy,
-      state.report.bins,
+      parseInt(state.report.bins),
       state.report.xaxis,
       stateComp.report.xmin,
       stateComp.report.xmax,
@@ -85,12 +94,13 @@ watch([response, enabled], ([response, enabled]) => {
   if (!enabled) {
     data.value = initData;
   } else if (response) {
-    if (response.data.length > 0) {
+    if (response.data.facets.length > 0) {
       data.value = response.data;
     } else {
       data.value = initData; // In case of empty data, show one empty plot
     }
   }
+  emit("dataUpdated", data.value);
 });
 
 cmd.on("refresh", refetch);
@@ -147,27 +157,17 @@ onBeforeUnmount(() => cmd.off("refresh", refetch));
     </div>
     <!-- Plots -->
     <div class="flex flex-wrap">
-      <div v-for="facetData in data" :key="facetData.facet">
+      <div v-for="facetData in data.facets" :key="facetData.facet">
         <div class="flex flex-col items-center">
           <p class="w-64 text-center truncate" :title="facetData.facet">
             {{ facetData.facet }}
           </p>
-          <CardPlot :key="facetData.facet" :data="facetData.groups" />
-        </div>
-      </div>
-    </div>
-    <!-- Legend -->
-    <div v-if="state.report.legend && data && data.length > 0" class="px-1">
-      <!-- TODO: legend -->
-      <div v-for="group in data[0].groups" class="flex flex-row">
-        <div
-          :style="{
-            backgroundColor: COLORS[group.group_index % COLORS.length],
-          }"
-          class="size-3 mr-1"
-        ></div>
-        <div>
-          {{ group.group }}
+          <CardPlot
+            :key="facetData.facet"
+            :data="facetData"
+            @show-tooltip="$emit('showTooltip')"
+            @hide-tooltip="$emit('hideTooltip')"
+          />
         </div>
       </div>
     </div>

@@ -23,9 +23,6 @@ import {
 } from "@tanstack/vue-query";
 import {
   Chart,
-  Title,
-  Tooltip,
-  Legend,
   LineController,
   LineElement,
   PointElement,
@@ -35,9 +32,6 @@ import {
 import { CrosshairPlugin } from "chartjs-plugin-crosshair";
 
 Chart.register(
-  Title,
-  Tooltip,
-  Legend,
   LineController,
   LineElement,
   PointElement,

@@ -30,25 +30,25 @@ interface Card {
 interface Report {
   cards: Card[];
   name: string;
-  bins: number;
+  bins: string;
   groupBy: string;
   facetBy: string;
   stepAgg: string;
   runAgg: string;
-  complete: boolean;
   xaxis: string;
   xmin: string; // Keep as strings for easier binding
   xmax: string;
   ymin: string;
   ymax: string;
-  legend: boolean;
+  complete: boolean;
 }
 
 interface State {
   project: string;
   experiments: string[];
   runs: string[] | null; // Null means all
-  metrics: Card[]; // Search result metrics  // TODO: maybe not part of state?
+  query: string;
+  metrics: Card[]; // Search results  // TODO: maybe not part of state?
   report: Report; // Current report (in edited state)
   reportIndex: number; // Which report is being edited
 }
@@ -56,18 +56,17 @@ interface State {
 const defaultReport: Report = {
   cards: [],
   name: "New",
-  bins: 200,
+  bins: "200",
   groupBy: "",
   facetBy: "",
   stepAgg: "mean",
   runAgg: "mean",
-  complete: false,
   xaxis: "step",
   xmin: "",
   xmax: "",
   ymin: "",
   ymax: "",
-  legend: false,
+  complete: false,
 };
 
 // State (not persisted, reflected in URL)
@@ -75,6 +74,7 @@ export const state = reactive({
   project: "default",
   experiments: [],
   runs: null,
+  query: "",
   metrics: [],
   report: deepCopy(defaultReport),
   reportIndex: 0,
@@ -99,9 +99,11 @@ export const reports = useStorage("reports", [
 
 // Patch reports
 reports.value[0] = deepCopy(defaultReport);
-reports.value.forEach((report, i) => {
-  if (Object.keys(report).join(",") !== Object.keys(defaultReport).join(",")) {
-    console.log(`Patching report: ${report.name}`);
+const defKeys = Object.keys(defaultReport).sort().join(",");
+reports.value.forEach((report) => {
+  const repKeys = Object.keys(report).sort().join(",")
+  if (repKeys !== defKeys) {
+    console.log(`Patching report: ${report.name} (${repKeys}) => (${defKeys})`);
     Object.keys(defaultReport).forEach((key) => {
       if (!(key in report)) {
         report[key] = deepCopy(defaultReport[key]);
@@ -125,8 +127,9 @@ interface UrlParams {
   project?: string;
   xids?: string;
   rids?: string;
-  ymin?: string;
-  ymax?: string;
+  query?: string;
+  // NOTE: report properties not listed
+  cards?: string;
 }
 
 function getStateParams(state: State): UrlParams {
@@ -134,10 +137,18 @@ function getStateParams(state: State): UrlParams {
   if (state.project != "default") params.project = state.project;
   if (state.experiments.length) params.xids = state.experiments.join(",");
   if (state.runs?.length) params.rids = state.runs.join(",");
-  if (state.report.ymin) params.ymin = state.report.ymin;
-  if (state.report.ymax) params.ymax = state.report.ymax;
-  // TODO: all report properties (solve delay bound)
-  // TODO: metric search query
+  if (state.query && state.query != ".*")
+    params.query = state.query;
+  // Report
+  const def = defaultReport;
+  const rep = state.report;
+  Object.keys(def).forEach((key) => {
+    // TODO: non-string properties (eg complete) not saved in url
+    if (typeof def[key] === "string" && key != "name" && rep[key] != def[key])
+      params[key] = rep[key];
+  });
+  if (rep.cards.length)
+    params.cards = rep.cards.map((c) => c.metric).join(",");
   return params;
 }
 
@@ -145,8 +156,21 @@ function setStateParams(state: State, params: UrlParams) {
   state.project = params.project ?? "default";
   state.experiments = params.xids?.split(",") ?? [];
   state.runs = params.rids?.split(",") ?? null;
-  state.report.ymin = params.ymin ?? "";
-  state.report.ymax = params.ymax ?? "";
+  // Report
+  const def = defaultReport;
+  const rep = state.report;
+  Object.keys(def).forEach((key) => {
+    // TODO: setting delay-bound properties (eg groupBy) does not update UI
+    if (typeof def[key] === "string" && key != "name")
+      rep[key] = params[key] ?? def[key];
+  });
+  if (params.cards) {
+    state.query = params.query ?? "";
+    state.report.cards = params.cards.split(",").map((m) => ({ metric: m }));
+  } else {
+    state.query = params.query ?? ".*";
+    state.report.cards = [];
+  }
 }
 
 function buildUrl(params: UrlParams): string {
@@ -180,12 +204,16 @@ function setUrl(url: string) {
     return;
   }
   window.history.pushState(null, "", url);
-  console.log("setUrl:", oldUrl, "->", url);
+  console.log("setUrl:", url);
 }
 
 function encode(str: string) {
-  // Leave commas alone for readability
-  return encodeURIComponent(str).replace(/%2C/g, ",");
+  let res = encodeURIComponent(str);
+  // Leave some chars unencoded for url readability
+  [",", "/"].forEach((c) => {
+    res = res.replace(new RegExp(encodeURIComponent(c), "g"), c);
+  });
+  return res;
 }
 
 function setStateFromUrl() {

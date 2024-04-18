@@ -54,11 +54,8 @@ watchDebounced(xmaxInput, (value) => {
   state.report.xmax = value;
 });
 
-const binsOptions = [20, 50, 100, 200, 500, 1000];
+const binsOptions = ["20", "50", "100", "200", "500", "1000"];
 
-cmd.on("report.settings.toggleLegend", () => {
-  state.report.legend = !state.report.legend;
-});
 for (let i = 1; i <= 5; i++) {
   cmd.on(`report.settings.bins${i}`, () => {
     state.report.bins = binsOptions[i - 1];

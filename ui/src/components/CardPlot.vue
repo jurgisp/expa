@@ -17,32 +17,22 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { Line } from "vue-chartjs";
-import { type ChartOptions } from "chart.js";
+import {
+  Chart,
+  type ActiveElement,
+  type ChartEvent,
+  type ChartOptions,
+} from "chart.js";
 
 import { stateComp } from "@/state";
 import { formatSteps, COLORS } from "@/utils";
+import type { PlotResponseFacet } from "@/api";
 
-const props = defineProps<{ data: any }>();
+type Point = { x: number; y: number; on: boolean };
+
+const props = defineProps<{ data: PlotResponseFacet }>();
+const emit = defineEmits(["showTooltip", "hideTooltip"]);
 const element = ref(null as HTMLElement | null);
-
-const chartData = computed(() => {
-  const data = props.data;
-  const datasets = data.map((group) => ({
-    label: group.group,
-    data: group.step.map((x, i) => ({ x: x, y: group.value[i] })),
-    borderColor: COLORS[group.group_index % COLORS.length],
-    pointHoverBackgroundColor: COLORS[group.group_index % COLORS.length],
-    pointHoverRadius: 3,
-    borderWidth: 1.5,
-    pointRadius: 0,
-  }));
-  return { datasets };
-});
-
-// TODO: plot improvements
-// - Custom expandable legend
-// - Tooltip/Mouseover?
-// - Bubbles when zoomed in?
 
 const chartOptions = computed(() => {
   const opt: ChartOptions<"line"> = {
@@ -60,10 +50,6 @@ const chartOptions = computed(() => {
         },
         min: stateComp.report.xmin ?? undefined,
         max: stateComp.report.xmax ?? undefined,
-        // title: {
-        //   display: state.report.xaxis != "step",
-        //   text: {"step": "steps", "runtime": "seconds"}[state.report.xaxis]
-        // },
       },
       y: {
         type: "linear",
@@ -78,18 +64,8 @@ const chartOptions = computed(() => {
       axis: "x",
       intersect: false,
     },
+    onHover: onHover,
     plugins: {
-      title: {
-        display: false,
-      },
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        // enabled: false,
-        animation: { duration: 0 },
-        itemSort: (a, b) => b.parsed.y - a.parsed.y,
-      },
       // @ts-ignore
       crosshair: {
         line: { color: "#DDD", width: 0.5 },
@@ -100,6 +76,59 @@ const chartOptions = computed(() => {
   };
   return opt;
 });
+
+const chartData = computed(() => {
+  const datasets = props.data.groups.map((group) => ({
+    label: group.group,
+    data: group.step.map((x, i) => ({ x: x, y: group.value[i] })),
+    borderColor: COLORS[group.group_index % COLORS.length],
+    pointHoverBackgroundColor: COLORS[group.group_index % COLORS.length],
+    pointHoverRadius: 3,
+    borderWidth: 1.5,
+    pointRadius: 0,
+  }));
+  return { datasets };
+});
+
+const hoverPoints = ref({} as { [key: string]: Point });
+const tooltipVisible = ref(false);
+const tooltipData = computed(() => {
+  const hovers = hoverPoints.value;
+  const groups = chartData.value.datasets.map((ds) => ({
+    label: ds.label,
+    color: ds.borderColor,
+    hoverX: hovers[ds.label]?.x,
+    hoverY: hovers[ds.label]?.y,
+    highlight: hovers[ds.label]?.on || false,
+  }));
+  return groups.sort(
+    (a, b) => (b.hoverY || -Infinity) - (a.hoverY || -Infinity)
+  );
+});
+
+function onHover(ev: ChartEvent, elements: ActiveElement[], chart: Chart) {
+  const points = {} as { [key: string]: Point };
+  const mouseYFrom = chart.scales["y"].getValueForPixel((ev.y || 0) + 3) || 0;
+  const mouseYTo = chart.scales["y"].getValueForPixel((ev.y || 0) - 3) || 0;
+  for (const el of elements) {
+    const ds = chartData.value.datasets[el.datasetIndex];
+    const p = { x: ds.data[el.index].x, y: ds.data[el.index].y || 0 };
+    const on = mouseYFrom <= p.y && p.y <= mouseYTo;
+    points[ds.label] = { x: p.x, y: p.y, on: on };
+  }
+  hoverPoints.value = points;
+}
+
+function showTooltip() {
+  tooltipVisible.value = true;
+  emit("showTooltip");
+}
+
+function hideTooltip() {
+  tooltipVisible.value = false;
+  hoverPoints.value = {};
+  emit("hideTooltip");
+}
 
 function resetZoom(e: MouseEvent) {
   // Bit hacky: simulate click on the hidden "Reset zoom" button
@@ -113,10 +142,39 @@ function resetZoom(e: MouseEvent) {
 
 <template>
   <div
-    class="w-[320px] h-[240px] mx-1 mb-1"
-    @dblclick="resetZoom"
+    class="w-[320px] h-[240px] mx-1 mb-1 relative"
     ref="element"
+    @dblclick="resetZoom"
+    @mouseover="showTooltip"
+    @mouseout="hideTooltip"
   >
+    <!-- @vue-ignore -->
     <Line :data="chartData" :options="chartOptions" />
+    <!-- Tooltip -->
+    <div
+      class="absolute left-0 top-100 w-[330px] translate-x-[-5px] z-10 shadow-md"
+      v-show="tooltipVisible"
+    >
+      <div class="bg-white text-gray-600 border p-1 pb-0 flex flex-col">
+        <div
+          v-for="group in tooltipData"
+          :class="{ flex: true, 'font-bold': group.highlight }"
+        >
+          <div
+            :style="{ backgroundColor: group.color }"
+            class="size-3 mr-1"
+          ></div>
+          <div class="w-1/2">
+            {{ group.label }}
+          </div>
+          <!-- <div class="w-1/3 text-right">
+            {{ group.hoverX }}
+          </div> -->
+          <div class="w-1/2 text-right">
+            {{ group.hoverY?.toPrecision(4) }}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

@@ -19,6 +19,8 @@ import { computed, ref, watch } from "vue";
 
 import { state } from "@/state";
 import { cmd } from "@/commands";
+import type { PlotResponse } from "@/api";
+import { COLORS } from "@/utils";
 
 import MetricsFilter from "./MetricsFilter.vue";
 import ReportSettings from "./ReportSettings.vue";
@@ -30,6 +32,8 @@ const unpinnedCards = computed(() => {
   return state.metrics.filter((metric) => !pinned.has(metric.metric));
 });
 const focusedMetric = ref(null as string | null);
+const globalLegend = ref([] as string[]);
+const showLegend = ref(true);
 
 function getPinnedIndex(metric: string | null): number | null {
   const ix = pinnedCards.value.findIndex((c) => c.metric === metric);
@@ -127,6 +131,13 @@ function unfocusCard() {
   focusedMetric.value = null;
 }
 
+function dataUpdated(metric: string, data: PlotResponse) {
+  // TODO: handle different groups in metrics/facets
+  globalLegend.value = data.facets.length
+    ? data.facets[0].groups.map((g) => g.group)
+    : [];
+}
+
 watch(
   // On report change
   computed(() => state.reportIndex),
@@ -142,7 +153,7 @@ cmd.on("deselect", unfocusCard);
 </script>
 
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col relative">
     <div class="p-1 bg-slate-200 border-b border-slate-400">
       <MetricsFilter />
     </div>
@@ -151,13 +162,7 @@ cmd.on("deselect", unfocusCard);
     </div>
     <div class="flex-grow overflow-auto bg-gray-100">
       <!-- Pinned cards -->
-      <div
-        class="flex flex-wrap gap-1 p-1"
-        v-if="pinnedCards.length > 0"
-      >
-        <!-- <div v-if="pinnedCards.length == 0" class="text-gray-400">
-          No pinned metrics
-        </div> -->
+      <div class="flex flex-wrap gap-1 p-1" v-if="pinnedCards.length > 0">
         <div
           v-for="(card, ix) in pinnedCards"
           :key="card.metric"
@@ -172,7 +177,10 @@ cmd.on("deselect", unfocusCard);
             @move-up="moveCardUp(card.metric)"
             @move-down="moveCardDown(card.metric)"
             @remove="addRemoveCard(card.metric)"
+            @data-updated="(data) => dataUpdated(card.metric, data)"
             @click.stop="focusedMetric = card.metric"
+            @show-tooltip="showLegend = false"
+            @hide-tooltip="showLegend = true"
           />
         </div>
       </div>
@@ -181,9 +189,7 @@ cmd.on("deselect", unfocusCard);
         v-if="pinnedCards.length > 0 && unpinnedCards.length > 0"
         class="p-1 bg-slate-200 border-y border-slate-400"
       >
-        <span class="text-gray-400">
-          Search results
-        </span>
+        <span class="text-gray-400"> Search results </span>
       </div>
       <!-- Unpinned metrics -->
       <div class="flex flex-wrap gap-1 p-1">
@@ -197,8 +203,29 @@ cmd.on("deselect", unfocusCard);
             :metric="card.metric"
             :pinned="false"
             @add="addRemoveCard(card.metric)"
+            @data-updated="(data) => dataUpdated(card.metric, data)"
             @click.stop="focusedMetric = card.metric"
+            @show-tooltip="showLegend = false"
+            @hide-tooltip="showLegend = true"
           />
+        </div>
+      </div>
+    </div>
+    <!-- Global legend -->
+    <div
+      class="absolute right-1 bottom-1 shadow-md"
+      v-show="showLegend && globalLegend.length"
+    >
+      <!-- TODO: show/hide groups on click -->
+      <div class="bg-white text-gray-600 border p-1 pb-0 flex flex-col max-h-[340px]">
+        <div v-for="(group, ix) in globalLegend" class="flex flex-row">
+          <div
+            :style="{ backgroundColor: COLORS[ix % COLORS.length] }"
+            class="size-3 mr-1"
+          ></div>
+          <div>
+            {{ group }}
+          </div>
         </div>
       </div>
     </div>

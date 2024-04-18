@@ -176,7 +176,7 @@ async def ready():
 async def get_experiments(project: str, filter: str = '', max_age: int = 0):
   df = await repo.get_experiments(project)
   if not len(df):
-    return []
+    return {'experiments': []}
   df['age'] = time.time() - df['last_timestamp']
   df['age_complete'] = time.time() - df['last_timestamp_complete']
   for col in ['age', 'max_step', 'age_complete', 'max_step_complete']:
@@ -196,7 +196,7 @@ async def get_experiments(project: str, filter: str = '', max_age: int = 0):
       df = pd.concat([df_byname, df_bynote]).drop_duplicates()
 
   df = df.sort_values('created_at', ascending=False)
-  return df.to_dict(orient='records')
+  return {'experiments': df.to_dict(orient='records')}
 
 
 @app.get('/runs')
@@ -207,12 +207,12 @@ async def get_runs(
 ):
   df = await repo.get_runs(project, xids)
   if not len(df):
-    return []
+    return {'runs': []}
   df = filter_regex(df, 'name', filter)
   df['age'] = (time.time() - df['last_timestamp'].fillna(0)).astype(int)
   df['max_step'] = df['max_step'].fillna(0).astype(int)
   df = df.sort_values(['exp', 'run'])
-  return df.to_dict(orient='records')
+  return {'runs': df.to_dict(orient='records')}
 
 
 @app.get('/metrics')
@@ -252,7 +252,7 @@ async def plot(
   xmin = None if xmin == -1 else xmin
   xmax = None if xmax == -1 else xmax
   if not xids:
-    return []
+    return {'facets': []}
   if not groupby:
     # group by (exp,run) by default
     groupby = ['exp', 'run'] if len(xids) > 1 else ['run']
@@ -271,7 +271,7 @@ async def plot(
       complete=complete,
   )
   if not len(df):
-    return []
+    return {'facets': []}
   # We have a choice between using `step` or `bin` for x axis
   # - `step` contains the max observed step in the bin
   # - `bin` contains the upper bound (inclusive) for steps in the bin
@@ -285,15 +285,19 @@ async def plot(
       'value': list,
   })
   df = df.sort_values(['facet', 'group'])
+  # TODO: in order to get truly consistent colors, we should calc group_index
+  # based on all runs for given filters, whether or not metric has data.
   group_index = {g: i for i, g in enumerate(sorted(df['group'].unique()))}
   df['group_index'] = df['group'].map(group_index)  # for consistent colors
-  return [
-      {
-          'facet': facet,
-          'groups': dfg.to_dict(orient='records'),
-      }
-      for facet, dfg in df.groupby('facet')
-  ]
+  return {
+      'facets': [
+          {
+              'facet': facet,
+              'groups': dfg.to_dict(orient='records'),
+          }
+          for facet, dfg in df.groupby('facet')
+      ]
+  }
 
 
 ##################

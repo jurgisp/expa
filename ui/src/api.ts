@@ -21,33 +21,71 @@ const api: AxiosInstance = axios.create({
   timeout: 30000,
 });
 
+export interface ExperimentsResponse {
+  experiments: {
+    xid: number;
+    name: string;
+    note: string;
+    run_count: number;
+    max_step: number;
+    max_step_complete: number;
+    age: number;
+    age_complete: number;
+  }[];
+}
 export function getExperiments(
   project: string,
   filter: string,
   max_age: number
 ) {
-  return api.get("/experiments", {
+  return api.get<ExperimentsResponse>("/experiments", {
     params: { project, filter, max_age },
   });
 }
 
+export interface RunsResponse {
+  runs: {
+    rid: number;
+    name: string;
+    exp: string;
+    max_step: number;
+    age: number;
+  }[];
+}
 export function getRuns(project: string, xids: string) {
-  return api.get("/runs", {
+  return api.get<RunsResponse>("/runs", {
     params: { project, xids },
   });
 }
 
+export interface MetricsResponse {
+  metrics: { metric: string }[];
+  total: number;
+  truncated: boolean;
+}
 export function getMetrics(
   project: string,
   xids: string,
   filter: string,
   limit: number
 ) {
-  return api.get("/metrics", {
+  return api.get<MetricsResponse>("/metrics", {
     params: { project, xids, filter, limit },
   });
 }
 
+export interface PlotResponse {
+  facets: PlotResponseFacet[];
+}
+export interface PlotResponseFacet {
+  facet: string;
+  groups: {
+    group: string;
+    group_index: number;
+    step: number[];
+    value: (number | null)[];
+  }[];
+}
 export function getPlot(
   project: string,
   metric: string,
@@ -63,7 +101,7 @@ export function getPlot(
   runagg: string,
   complete: boolean
 ) {
-  return api.get("/plot", {
+  return api.get<PlotResponse>("/plot", {
     params: {
       project,
       xids,
