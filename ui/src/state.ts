@@ -25,6 +25,8 @@ import { deepCopy, parseFloatInput, parseIntInput } from "@/utils";
 
 interface Card {
   metric: string;
+  is_scalar: boolean;
+  is_image: boolean;
 }
 
 interface Report {
@@ -166,7 +168,9 @@ function setStateParams(state: State, params: UrlParams) {
   });
   if (params.cards) {
     state.query = params.query ?? "";
-    state.report.cards = params.cards.split(",").map((m) => ({ metric: m }));
+    state.report.cards = params.cards.split(",").map((m) => (
+        { metric: m, is_scalar: true, is_image: false }  // TODO: non-scalar cards
+    ));
   } else {
     state.query = params.query ?? ".*";
     state.report.cards = [];

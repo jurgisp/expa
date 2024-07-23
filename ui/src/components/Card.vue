@@ -27,6 +27,8 @@ import CardPlot from "./CardPlot.vue";
 
 const props = defineProps<{
   metric: string;
+  is_scalar: boolean;
+  is_image: boolean;
   pinned: boolean;
   pinnedFirst?: boolean;
   pinnedLast?: boolean;
@@ -103,6 +105,10 @@ watch([response, enabled], ([response, enabled]) => {
   emit("dataUpdated", data.value);
 });
 
+function getImageUrl() {
+  return `http://localhost:8010/image?project=${state.project}&metric=${props.metric}&xid=${stateComp.xids}&rid=${stateComp.rids}`
+}
+
 cmd.on("refresh", refetch);
 onBeforeUnmount(() => cmd.off("refresh", refetch));
 </script>
@@ -151,25 +157,31 @@ onBeforeUnmount(() => cmd.off("refresh", refetch));
     </div>
     <div class="mt-1 flex flex-col items-center">
       <p class="w-64 text-center truncate font-bold" :title="metric">
-        <span v-if="state.report.runAgg == 'mean'">{{ metric }}</span>
-        <span v-else>{{ state.report.runAgg }}({{ metric }})</span>
+        <span v-if="is_scalar && state.report.runAgg != 'mean'">{{ state.report.runAgg }}({{ metric }})</span>
+        <span v-else>{{ metric }}</span>
       </p>
     </div>
-    <!-- Plots -->
-    <div class="flex flex-wrap">
-      <div v-for="facetData in data.facets" :key="facetData.facet">
-        <div class="flex flex-col items-center">
-          <p class="w-64 text-center truncate" :title="facetData.facet">
-            {{ facetData.facet }}
-          </p>
-          <CardPlot
-            :key="facetData.facet"
-            :data="facetData"
-            @show-tooltip="$emit('showTooltip')"
-            @hide-tooltip="$emit('hideTooltip')"
-          />
+    <div v-if="is_scalar">
+      <!-- Plots -->
+      <div class="flex flex-wrap">
+        <div v-for="facetData in data.facets" :key="facetData.facet">
+          <div class="flex flex-col items-center">
+            <p class="w-64 text-center truncate" :title="facetData.facet">
+              {{ facetData.facet }}
+            </p>
+            <CardPlot
+              :key="facetData.facet"
+              :data="facetData"
+              @show-tooltip="$emit('showTooltip')"
+              @hide-tooltip="$emit('hideTooltip')"
+            />
+          </div>
         </div>
       </div>
+    </div>
+    <div v-else-if="is_image">
+      <!-- TODO: Images -->
+      <img :src="getImageUrl()"/>
     </div>
   </div>
 </template>

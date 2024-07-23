@@ -59,7 +59,13 @@ export function getRuns(project: string, xids: string) {
 }
 
 export interface MetricsResponse {
-  metrics: { metric: string }[];
+  metrics: {
+    metric: string;
+    is_scalar: boolean;
+    is_image: boolean;
+    shape: string | null;
+    dtype: string | null;
+  }[];
   total: number;
   truncated: boolean;
 }

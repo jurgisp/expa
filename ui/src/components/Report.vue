@@ -171,6 +171,8 @@ cmd.on("deselect", unfocusCard);
           <Card
             :key="card.metric"
             :metric="card.metric"
+            :is_scalar="card.is_scalar"
+            :is_image="card.is_image"
             :pinned="true"
             :pinnedFirst="ix == 0"
             :pinnedLast="ix == pinnedCards.length - 1"
@@ -201,6 +203,8 @@ cmd.on("deselect", unfocusCard);
           <Card
             :key="card.metric"
             :metric="card.metric"
+            :is_scalar="card.is_scalar"
+            :is_image="card.is_image"
             :pinned="false"
             @add="addRemoveCard(card.metric)"
             @data-updated="(data) => dataUpdated(card.metric, data)"
