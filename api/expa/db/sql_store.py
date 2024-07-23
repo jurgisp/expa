@@ -48,6 +48,7 @@ class PgSqlStore:
     self._run_metric_cache: set[tuple[int, str]] = set()
 
   async def init(self):
+    print(f'Connecting to SQL store {self.dsn}...')
     settings = {}
     if self.alloydb:
       # Use row scan instead of index for fresh rowstore data in columnar query
@@ -61,7 +62,9 @@ class PgSqlStore:
         server_settings=settings
     )
     if not self.readonly:
+      print('Initializing DB schema...')
       await self._init_schema()
+    print(f'Connected to {self.dsn}')
     return self
 
   def _connect(self):
@@ -69,7 +72,6 @@ class PgSqlStore:
     return self._pool.acquire()
 
   async def _init_schema(self):
-    print('Initializing DB schema...')
     async with self._connect() as conn:
       await conn.execute(
           """

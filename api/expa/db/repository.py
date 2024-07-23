@@ -34,7 +34,6 @@ class Repository:
 
   async def init(self):
     await self._db.init()
-    print(f'Connected to {self._db.dsn}')
 
   ##################
   # Write
@@ -50,16 +49,19 @@ class Repository:
       step: int,
       timestamp: float,
   ):
+    data.pop('', None)  # Empty key not allowed
     scalars = {
         k: float(v)
         for k, v in data.items()
-        if v.ndim == 0 and np.issubdtype(v.dtype, np.number) and k != ''
+        if v.ndim == 0 and np.issubdtype(v.dtype, np.number)
     }
-    # TODO: silently ignores non-scalars for now
+    tensors = {k: v for k, v in data.items() if k not in scalars}
     if scalars:
       await self._db.write_metrics(
           scalars, project, user, exp, run, step, timestamp
       )
+    if tensors:
+      print('WARN: ignoring tensors:', {k: v.shape for k, v in data.items()})
 
   async def write_params(
       self,

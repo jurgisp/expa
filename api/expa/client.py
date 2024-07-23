@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
+
 import numpy as np
 import requests
 
@@ -37,9 +39,22 @@ class Client:
         for k, v in data.items()
         if v.ndim == 0 and np.issubdtype(v.dtype, np.number)
     }
-    nonscalars = [k for k in data.keys() if k not in scalars]
-    if nonscalars:
-      print(f'WARN: dropping non-scalars in expa api client {nonscalars}')
+    tensors = {k: v for k, v in data.items() if k not in scalars}
+    if scalars:
+      self._log_scalars(scalars, project, user, exp, run, step, timestamp)
+    if tensors:
+      self._log_tensors(tensors, project, user, exp, run, step, timestamp)
+
+  def _log_scalars(
+      self,
+      scalars: dict[str, float],
+      project: str,
+      user: str,
+      exp: str,
+      run: str,
+      step: int,
+      timestamp: float,
+  ):
     requests.post(
         self.api_url + '/log_metrics',
         json=dict(
@@ -52,6 +67,32 @@ class Client:
             timestamp=timestamp,
         ),
     ).raise_for_status()
+
+  def _log_tensors(
+      self,
+      data: dict[str, np.ndarray],
+      project: str,
+      user: str,
+      exp: str,
+      run: str,
+      step: int,
+      timestamp: float,
+  ):
+    with io.BytesIO() as buffer:
+      np.savez_compressed(buffer, **data)
+      buffer.seek(0)
+      requests.post(
+          self.api_url + '/log_tensors',
+          files={'file': ('data.npz', buffer, 'application/octet-stream')},
+          data=dict(
+              project=project,
+              user=user,
+              exp=exp,
+              run=run,
+              step=step,
+              timestamp=timestamp,
+          ),
+      ).raise_for_status()
 
   def log_params(
       self,

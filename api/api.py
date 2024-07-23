@@ -15,13 +15,14 @@
 """expa api.
 
 Start:
-  uvicorn api.api:app --reload --host 0.0.0.0 --port 8010
+  uvicorn api:app --reload --host 0.0.0.0 --port 8010
 """
 
 from typing import Optional
 
 import contextlib
 from datetime import datetime
+import io
 import os
 import re
 import time
@@ -320,6 +321,24 @@ async def log_metrics(r: LogMetricsRequest):
   data = {k: np.asarray(v) for k, v in r.data.items()}
   await repo.write_metrics(
       data, r.project, r.user, r.exp, r.run, r.step, r.timestamp
+  )
+
+
+@app.post('/log_tensors')
+async def process_data(
+    file: fastapi.UploadFile = fastapi.File(...),
+    project: str = fastapi.Form(default=''),
+    user: str = fastapi.Form(default=''),
+    exp: str = fastapi.Form(default=''),
+    run: str = fastapi.Form(default=''),
+    step: int = fastapi.Form(...),
+    timestamp: float = fastapi.Form(...),
+):
+  contents = await file.read()
+  with np.load(io.BytesIO(contents)) as npz:
+    data = {k: npz[k] for k in npz}
+  await repo.write_metrics(
+      data, project, user, exp, run, step, timestamp
   )
 
 

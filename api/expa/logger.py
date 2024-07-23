@@ -59,20 +59,8 @@ class Logger:
   def log(self, data: dict[str, Any], step: int):
     step = int(step)
     data_np = {k: np.asarray(v) for k, v in data.items()}
-    scalars = {
-        k: v
-        for k, v in data_np.items()
-        if v.ndim == 0 and np.issubdtype(v.dtype, np.number)
-    }
-    # TODO: support non-scalars
-    nonscalars = [k for k in data_np.keys() if k not in scalars]
-    nonscalars = set(nonscalars) - self._nonscalars
-    if nonscalars:
-      print(f'WARN: dropping non-scalars in expa logger {nonscalars}')
-      self._nonscalars |= nonscalars
-
     self._client.log_metrics(
-        scalars,
+        data_np,
         self.project,
         self.user,
         self.exp,
