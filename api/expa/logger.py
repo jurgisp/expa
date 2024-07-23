@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 import time
 from typing import Any
+
 import numpy as np
-import re
 
 from . import client as api_client
 

@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from concurrent import futures
 import dataclasses
+from concurrent import futures
 from typing import Callable
 
-from google.cloud import pubsub_v1
 import google.cloud.pubsub_v1.publisher.futures as publisher_futures
 import google.cloud.pubsub_v1.subscriber.message as subscriber_message
 import msgpack
 import numpy as np
+from google.cloud import pubsub_v1
 
 
 @dataclasses.dataclass

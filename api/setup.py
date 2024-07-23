@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import defaultdict
 import pathlib
 import re
+from collections import defaultdict
+
 import setuptools
 
 

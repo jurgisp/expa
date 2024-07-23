@@ -18,24 +18,21 @@ Start:
   uvicorn api:app --reload --host 0.0.0.0 --port 8010
 """
 
-from typing import Optional
-
 import contextlib
-from datetime import datetime
 import io
 import os
 import re
 import time
 import traceback
-
-import numpy as np
-import pandas as pd
+from datetime import datetime
+from typing import Optional
 
 import fastapi
-from fastapi.middleware import cors
-from fastapi.middleware import gzip
+import numpy as np
+import pandas as pd
 import pydantic as pyd
 import uvicorn
+from fastapi.middleware import cors, gzip
 
 import expa.db
 

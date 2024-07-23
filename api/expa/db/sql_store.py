@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
 import asyncio
 import time
+from typing import Optional
 
 import asyncpg as pg
 import pandas as pd
@@ -645,6 +645,7 @@ def clean_float(value: float) -> Optional[float]:
   # Don't use special values (NaN, Infinity, -Infinity) in DB.
   # Even though SQL supports them, it causes downstream issues.
   import math
+
   import numpy as np
 
   if math.isnan(value):

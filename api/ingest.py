@@ -15,8 +15,8 @@
 import asyncio
 import threading
 import time
-from absl import app
-from absl import flags
+
+from absl import app, flags
 
 import expa.db
 import expa.pubsub
