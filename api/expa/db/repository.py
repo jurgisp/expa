@@ -17,21 +17,22 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from . import sql_store
+from .sql_store import PgSqlStore
+from .kv_store import FileKVStore
 
 
 class Repository:
 
   def __init__(
       self,
-      dsn: str,
+      sql_dsn: str,
+      filestore_dir: str,
       readonly: bool = False,
       max_conn: int = 20,
       log: bool = False,
   ):
-    self._db = sql_store.PgSqlStore(
-        dsn, readonly=readonly, max_conn=max_conn, log=log
-    )
+    self._db = PgSqlStore(sql_dsn, readonly=readonly, max_conn=max_conn, log=log)
+    self._kv = FileKVStore(filestore_dir)
 
   async def init(self):
     await self._db.init()
@@ -51,18 +52,28 @@ class Repository:
       timestamp: float,
   ):
     data.pop('', None)  # Empty key not allowed
+
     scalars = {
         k: float(v)
         for k, v in data.items()
         if v.ndim == 0 and np.issubdtype(v.dtype, np.number)
     }
-    tensors = {k: v for k, v in data.items() if k not in scalars}
     if scalars:
       await self._db.write_metrics(
           scalars, project, user, exp, run, step, timestamp
       )
+
+    tensors = {k: v for k, v in data.items() if k not in scalars}
     if tensors:
-      print('WARN: ignoring tensors:', {k: v.shape for k, v in data.items()})
+      # Metadata about tensors is written to SQL, and the actual data to KV store
+      shapes_dtypes = {
+          k: (','.join(str(d) for d in v.shape), str(v.dtype))
+          for k, v in tensors.items()
+      }
+      pid, xid, rid, mids = await self._db.write_tensors_meta(
+          shapes_dtypes, project, user, exp, run, step, timestamp
+      )
+      self._kv.write_tensors_data(tensors, pid, xid, rid, mids, step)
 
   async def write_params(
       self,

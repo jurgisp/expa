@@ -23,9 +23,8 @@ import expa.pubsub
 
 flags.DEFINE_string('project', None, 'GCP project', required=True)
 flags.DEFINE_string('subscription', None, 'GCP subscription', required=True)
-flags.DEFINE_string(
-    'dsn', 'postgresql://postgres:postgres@localhost/postgres', 'Database.'
-)
+flags.DEFINE_string('dsn', 'postgresql://postgres:postgres@localhost/postgres', 'Database.')
+flags.DEFINE_string('filestore', '/tmp/expa_filestore', 'File store directory.')
 flags.DEFINE_integer('parallel', 20, 'Number of parallel messages to process.')
 flags.DEFINE_bool('log_sql', False, '')
 
@@ -35,7 +34,7 @@ args = flags.FLAGS
 def main(unused_argv):
   sync = SyncRunner()
   sub = expa.pubsub.Subscriber(args.project, args.subscription)
-  repo = expa.db.Repository(args.dsn, max_conn=args.parallel, log=args.log_sql)
+  repo = expa.db.Repository(args.dsn, args.filestore, max_conn=args.parallel, log=args.log_sql)
   sync(repo.init())
 
   def on_data(msg: expa.pubsub.DataMessage) -> bool:

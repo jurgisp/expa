@@ -110,6 +110,9 @@ class PgSqlStore:
               rid integer REFERENCES expa.runs(rid),
               mid integer REFERENCES expa.project_metrics(mid),
               metric text,
+              is_scalar bool DEFAULT true,
+              shape text,
+              dtype text,
               UNIQUE (rid, mid)
           );
           CREATE TABLE IF NOT EXISTS expa.run_params (
@@ -129,6 +132,17 @@ class PgSqlStore:
           );
           CREATE INDEX IF NOT EXISTS ix_scalar_data
           ON expa.scalar_data (xid, mid, rid, step) INCLUDE (value, timestamp);
+          CREATE TABLE IF NOT EXISTS expa.tensor_metadata (
+              xid integer,
+              rid integer,
+              mid integer,
+              step bigint,
+              shape text,
+              dtype text,
+              timestamp float
+          );
+          CREATE INDEX IF NOT EXISTS ix_tensor_metadata
+          ON expa.tensor_metadata (xid, mid, rid, step);
           """
       )
 
@@ -151,13 +165,37 @@ class PgSqlStore:
     xid = await self._get_or_create_exp(exp, pid, user)
     rid = await self._get_or_create_run(run, xid, user)
     await asyncio.gather(
-        *[
-            # Runs all these tasks in parallel
-            self._maybe_create_run_metric(pid, rid, metric)
+        *[  # parallel calls
+            self._maybe_create_run_metric(pid, rid, metric, True, None, None)
             for metric in metrics.keys()
         ]
     )
     await self._write_metrics(pid, xid, rid, metrics, step, timestamp)
+
+  async def write_tensors_meta(
+      self,
+      shapes_dtypes: dict[str, tuple[str, str]],
+      project: str,
+      user: str,
+      exp: str,
+      run: str,
+      step: int,
+      timestamp: float,
+  ) -> tuple[int, int, int, dict[str, int]]:
+    assert not self.readonly
+    pid = await self._get_or_create_project(project, user)
+    xid = await self._get_or_create_exp(exp, pid, user)
+    rid = await self._get_or_create_run(run, xid, user)
+    await asyncio.gather(
+        *[  # parallel calls
+            self._maybe_create_run_metric(pid, rid, metric, False, shape, dtype)
+            for metric, (shape, dtype) in shapes_dtypes.items()
+        ]
+    )
+    # Calling _get_or_create_project_metric before ensures _mid_cache is filled
+    mids = {m: self._mid_cache[(pid, m)] for m in shapes_dtypes.keys()}
+    await self._write_tensor_meta(pid, xid, rid, shapes_dtypes, step, timestamp)
+    return pid, xid, rid, mids
 
   async def write_params(
       self,
@@ -267,21 +305,31 @@ class PgSqlStore:
       return rid
 
   async def _maybe_create_run_metric(
-      self, pid: int, rid: int, metric: str
+      self,
+      pid: int,
+      rid: int,
+      metric: str,
+      is_scalar: bool,
+      shape: str | None,
+      dtype: str | None,
   ) -> None:
     if (rid, metric) in self._run_metric_cache:
       return
     mid = await self._get_or_create_project_metric(pid, metric)
     async with self._connect() as conn:
+      # The shape of a metric is assumed not to change within a run
       await conn.execute(
           """
-          INSERT INTO expa.run_metrics (rid, mid, metric)
-          VALUES ($1, $2, $3)
+          INSERT INTO expa.run_metrics (rid, mid, metric, is_scalar, shape, dtype)
+          VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (rid, mid) DO NOTHING
           """,
           rid,
           mid,
           metric,
+          is_scalar,
+          shape,
+          dtype,
       )
       self._run_metric_cache.add((rid, metric))
 
@@ -331,6 +379,42 @@ class PgSqlStore:
           [
               (mids[metric], xid, rid, step, clean_float(value), timestamp)
               for metric, value in metrics.items()
+          ],
+      )
+      await conn.execute(
+          """
+          UPDATE expa.runs
+          SET
+            max_step = GREATEST($2, max_step),
+            last_timestamp = GREATEST($3, last_timestamp)
+          WHERE rid = $1
+          """,
+          rid,
+          step,
+          timestamp,
+      )
+
+  async def _write_tensor_meta(
+      self,
+      pid: int,
+      xid: int,
+      rid: int,
+      shapes_dtypes: dict[str, tuple[str, str]],
+      step: int,
+      timestamp: float,
+  ):
+    assert shapes_dtypes
+    # Calling _get_or_create_project_metric before ensures _mid_cache is filled
+    mids = {m: self._mid_cache[(pid, m)] for m in shapes_dtypes.keys()}
+    async with self._connect() as conn:
+      await conn.executemany(
+          """
+          INSERT INTO expa.tensor_metadata (mid, xid, rid, step, shape, dtype, timestamp)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          """,
+          [
+              (mids[metric], xid, rid, step, shape, dtype, timestamp)
+              for metric, (shape, dtype) in shapes_dtypes.items()
           ],
       )
       await conn.execute(
