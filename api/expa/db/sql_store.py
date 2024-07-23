@@ -570,7 +570,7 @@ class PgSqlStore:
     async with self._connect() as conn:
       rows = await conn.fetch(
           """
-          SELECT DISTINCT metric
+          SELECT DISTINCT metric, is_scalar, shape, dtype
           FROM expa.run_metrics
           WHERE rid = ANY($1::integer[])
           ORDER BY metric;
@@ -578,6 +578,20 @@ class PgSqlStore:
           rids,
       )
     return pd.DataFrame([dict(r) for r in rows])
+
+  async def get_mid(self, project: str, metric: str) -> int | None:
+    async with self._connect() as conn:
+      mid = await conn.fetchval(
+          """
+          SELECT mid FROM expa.project_metrics
+          WHERE
+            pid = (SELECT pid FROM expa.projects WHERE name = $1)
+            AND metric = $2
+          """,
+          project,
+          metric,
+      )
+      return mid
 
   async def plot_metrics(
       self,
@@ -596,31 +610,17 @@ class PgSqlStore:
   ) -> pd.DataFrame:
     assert bins <= 10_000, 'Sanity check'
 
-    # Select runs
+    mid = await self.get_mid(project, metric)
     runs_df = await self.get_runs(
         project,
         xids,
         rids=rids,
         with_params=groupby,
     )
-    if len(runs_df) == 0:
+    if not mid or len(runs_df) == 0:
       return pd.DataFrame()
 
     async with self._connect() as conn:
-      # Resolve metric id
-      mid = await conn.fetchval(
-          """
-          SELECT mid FROM expa.project_metrics
-          WHERE
-            pid = (SELECT pid FROM expa.projects WHERE name = $1)
-            AND metric = $2
-          """,
-          project,
-          metric,
-      )
-      if not mid:
-        return pd.DataFrame()
-
       if xaxis == 'step':
         xmax = xmax or runs_df['max_step'].fillna(0).max()
         stepcol = 'step'
@@ -696,6 +696,39 @@ class PgSqlStore:
       df = df[df['runs'] == df['total_runs']].copy()
 
     return df
+
+  async def select_tensors(
+      self,
+      project: str,
+      metric: str,
+      xids: list[int],
+      rids: Optional[list[int]],
+  ) -> pd.DataFrame:
+    mid = await self.get_mid(project, metric)
+    runs_df = await self.get_runs(
+        project,
+        xids,
+        rids=rids,
+    )
+    if not mid or len(runs_df) == 0:
+      return pd.DataFrame()
+    async with self._connect() as conn:
+      rows = await conn.fetch(
+          f"""
+          SELECT mid, rid, step
+          FROM expa.tensor_metadata
+          WHERE
+            mid = {mid}
+            AND xid = ANY($1::integer[])
+            AND ({rids is None} OR rid = ANY($2::integer[]))
+          ORDER BY step DESC
+          LIMIT 100
+          """,
+          xids,
+          rids or [],
+      )
+      df = pd.DataFrame([dict(r) for r in rows])
+      return df
 
 
 class LoggingConnection(pg.Connection):

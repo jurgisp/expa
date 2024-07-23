@@ -33,6 +33,8 @@ import pandas as pd
 import pydantic as pyd
 import uvicorn
 from fastapi.middleware import cors, gzip
+from fastapi import HTTPException
+from PIL import Image
 
 import expa.db
 
@@ -53,7 +55,7 @@ def parse_xids(xids: str = fastapi.Query(...)) -> list[int]:
   try:
     return [int(v) for v in xids.split(',') if v != '']
   except ValueError:
-    raise fastapi.HTTPException(status_code=400, detail=f'Not integers: {xids}')
+    raise HTTPException(status_code=400, detail=f'Not integers: {xids}')
 
 
 def parse_rids(rids: str = fastapi.Query(None)) -> Optional[list[int]]:
@@ -64,7 +66,7 @@ def parse_rids(rids: str = fastapi.Query(None)) -> Optional[list[int]]:
   try:
     return [int(v) for v in rids.split(',') if v != '']
   except ValueError:
-    raise fastapi.HTTPException(status_code=400, detail=f'Not integers: {rids}')
+    raise HTTPException(status_code=400, detail=f'Not integers: {rids}')
 
 
 def parse_groupby(groupby: str = fastapi.Query('')) -> list[str]:
@@ -221,6 +223,8 @@ async def get_metrics(
   df = await repo.get_metrics(project, xids)
   if len(df):
     df = filter_regex(df, 'metric', filter)
+    df['is_image'] = df['shape'].apply(lambda shape: shape is not None and len(shape.split(',')) == 3 and shape[-1] == '3')
+    df = df[df['is_scalar'] | df['is_image']]
   return {
       'metrics': df.head(limit).to_dict(orient='records'),
       'total': len(df),
@@ -294,6 +298,29 @@ async def plot(
           for facet, dfg in df.groupby('facet')
       ]
   }
+
+
+@app.get("/image")
+async def get_image(
+    project: str,
+    metric: str,
+    xid: int,
+    rid: int,
+    step: int = -1,  # -1 means last
+):
+  data = await repo.get_tensor(project, metric, xid, rid, step)
+  if data is None:
+    raise HTTPException(status_code=404)
+  # TODO: handle batch of images
+  if not (len(data.shape) == 3 and data.shape[-1] == 3):
+    raise ValueError(f'Bad image shape {data.shape}')
+  if data.dtype != np.uint8:
+    data = (data * 256).clip(0, 255).astype(np.uint8)
+  image = Image.fromarray(data)
+  with io.BytesIO() as buffer:
+    image.save(buffer, 'PNG')
+    buffer.seek(0)
+    return fastapi.Response(buffer.read(), media_type="image/png")
 
 
 ##################

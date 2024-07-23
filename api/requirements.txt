@@ -17,3 +17,4 @@ absl-py
 fastapi
 uvicorn
 orjson
+pillow

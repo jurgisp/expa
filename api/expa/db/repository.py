@@ -73,7 +73,7 @@ class Repository:
       pid, xid, rid, mids = await self._db.write_tensors_meta(
           shapes_dtypes, project, user, exp, run, step, timestamp
       )
-      self._kv.write_tensors_data(tensors, pid, xid, rid, mids, step)
+      self._kv.write_tensors_data(tensors, xid, rid, mids, step)  # TODO: async
 
   async def write_params(
       self,
@@ -135,3 +135,20 @@ class Repository:
         runagg,
         complete,
     )
+
+  async def get_tensor(
+      self,
+      project: str,
+      metric: str,
+      xid: int,
+      rid: int,
+      step: int = -1
+  ) -> np.ndarray | None:
+    # TODO
+    df = await self._db.select_tensors(project, metric, [xid], [rid])
+    if not len(df):
+      return None
+    mid = df['mid'][0]
+    if step == -1:
+      step = df['step'][0]
+    return self._kv.read_tensor_data(xid, rid, mid, step)

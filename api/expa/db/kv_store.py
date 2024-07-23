@@ -9,12 +9,28 @@ class KVStore(Protocol):
   def write_tensors_data(
     self,
     data: dict[str, np.ndarray],
-    pid: int,
     xid: int,
     rid: int,
     mids: dict[str, int],
     step: int,
-  ): ...
+  ) -> None: ...
+
+  def write_tensor_data(
+    self,
+    data: np.ndarray,
+    xid: int,
+    rid: int,
+    mid: int,
+    step: int,
+  ) -> None: ...
+
+  def read_tensor_data(
+    self,
+    xid: int,
+    rid: int,
+    mid: int,
+    step: int,
+  ) -> np.ndarray | None: ...
 
 
 class FileKVStore:
@@ -25,26 +41,42 @@ class FileKVStore:
   def write_tensors_data(
     self,
     data: dict[str, np.ndarray],
-    pid: int,
     xid: int,
     rid: int,
     mids: dict[str, int],
     step: int,
-  ):
+  ) -> None:
     for key, value in data.items():
-      self._write_tensor_data(value, xid, rid, mids[key], step)
+      self.write_tensor_data(value, xid, rid, mids[key], step)
 
-  def _write_tensor_data(
+  def write_tensor_data(
     self,
     data: np.ndarray,
     xid: int,
     rid: int,
     mid: int,
     step: int,
-  ):
+  ) -> None:
+    # TODO: async (will block ui otherwise)
     path = self.root_dir / str(xid) / str(rid) / str(mid) / f"{step}.npy"
     path.parent.mkdir(parents=True, exist_ok=True)
-    save_npz(dict(data=data), path)
+    save_npz({"data": data}, path)
+
+  def read_tensor_data(
+    self,
+    xid: int,
+    rid: int,
+    mid: int,
+    step: int,
+  ) -> np.ndarray | None:
+    # TODO: async (will block ui otherwise)
+    path = self.root_dir / str(xid) / str(rid) / str(mid) / f"{step}.npy"
+    if not path.exists():
+      print(f'{str(path)} not found')
+      return None
+    with path.open("rb") as f:
+      print(f'{str(path)} loading')
+      return np.load(f)["data"]
 
 
 def save_npz(data: dict[str, np.ndarray], path: Path):
