@@ -25,13 +25,6 @@ services:
   api:
     build: ./api
     restart: unless-stopped
-    command:
-      - "-m"
-      - "uvicorn"
-      - "api:app"
-      - "--host=0.0.0.0"
-      - "--port=8010"
-      - "--workers=1"
     environment:
       EXPA_DB: postgresql://postgres:postgres@db/postgres
     expose: ["8010"]
