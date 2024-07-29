@@ -101,9 +101,9 @@ def parse_filter_steps_from(filter: str) -> Optional[int]:
 DB = os.environ.get('EXPA_DB', 'postgresql://postgres:postgres@localhost/postgres')
 DB_READONLY = os.environ.get('EXPA_DB_READONLY', 'False') == 'True'
 FILESTORE = os.environ.get('EXPA_FILESTORE', './.expa_filestore')
-LOG = True
+LOG_QUERIES = os.environ.get('EXPA_LOG_QUERIES', 'False') == 'True'
 
-repo = expa.db.Repository(DB, FILESTORE, readonly=DB_READONLY, log=LOG)
+repo = expa.db.Repository(DB, FILESTORE, readonly=DB_READONLY, log=LOG_QUERIES)
 
 
 @contextlib.asynccontextmanager
