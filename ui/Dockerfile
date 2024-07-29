@@ -5,25 +5,12 @@ RUN npm install
 COPY . .
 RUN npm run build
 
+# Nginx forwards /api requests to the sidecar container
 FROM nginx:stable-alpine as run
+ENV PORT="80"
+ENV API_HOST="127.0.0.1:8010"
+EXPOSE ${PORT}
 COPY --from=build /app/dist /usr/share/nginx/html
 RUN chmod -R 755 /usr/share/nginx/html
-# Forward /api requests to the sidecar container
-RUN echo "server {" \
-         "    listen 80;" \
-         "    location / {" \
-         "        root /usr/share/nginx/html;" \
-         "        index index.html;" \
-         "        try_files \$uri \$uri/ /index.html;" \
-         "    }" \
-         "    location /api/ {" \
-         "        proxy_pass http://127.0.0.1:8010/;" \
-         "        proxy_http_version 1.1;" \
-         "        proxy_set_header Upgrade \$http_upgrade;" \
-         "        proxy_set_header Connection 'upgrade';" \
-         "        proxy_set_header Host \$host;" \
-         "        proxy_cache_bypass \$http_upgrade;" \
-         "    }" \
-         "}" > /etc/nginx/conf.d/default.conf
-EXPOSE 80
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 CMD ["nginx", "-g", "daemon off;"]

@@ -19,6 +19,8 @@ services:
     restart: unless-stopped
     # Restricting to localhost, change to 8000:80 to allow external access
     ports: ["127.0.0.1:${PORT:-8000}:80"]
+    environment:
+      API_HOST: "api:8010"
     depends_on:
       - api
 
