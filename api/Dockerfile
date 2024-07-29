@@ -43,5 +43,4 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 
-ENTRYPOINT ["/app/venv/bin/python"]
-CMD ["-m", "uvicorn", "api:app", "--host=0.0.0.0", "--port=8010", "--workers=1"]
+CMD ["/app/venv/bin/python", "-m", "uvicorn", "api:app", "--host=0.0.0.0", "--port=8010", "--workers=4"]
