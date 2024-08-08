@@ -158,19 +158,19 @@ function resetZoom(e: MouseEvent) {
       <div class="bg-white text-gray-600 border p-1 pb-0 flex flex-col">
         <div
           v-for="group in tooltipData"
-          :class="{ flex: true, 'font-bold': group.highlight }"
+          :class="{ flex: true, 'gap-1': true, 'font-bold': group.highlight }"
         >
           <div
             :style="{ backgroundColor: group.color }"
             class="size-3 mr-1"
           ></div>
-          <div class="w-1/2">
+          <div class="flex-grow">
             {{ group.label }}
+            <span class="text-gray-400">
+              {{ group.hoverX ? "[" + formatSteps(group.hoverX) + "]" : "" }}
+            </span>
           </div>
-          <!-- <div class="w-1/3 text-right">
-            {{ group.hoverX }}
-          </div> -->
-          <div class="w-1/2 text-right">
+          <div class="text-right">
             {{ group.hoverY?.toPrecision(4) }}
           </div>
         </div>
