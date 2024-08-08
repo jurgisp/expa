@@ -59,7 +59,7 @@ class PgSqlStore:
         max_size=self.max_conn,
         connection_class=LoggingConnection if self.log else pg.Connection,
         command_timeout=300,
-        server_settings=settings
+        server_settings=settings,
     )
     if not self.readonly:
       print('Initializing DB schema...')
@@ -626,9 +626,20 @@ class PgSqlStore:
         stepcol = 'step'
 
       elif xaxis == 'runtime':
-        t0 = runs_df['created_at'].min()  # TODO: per-run offset
-        xmax = xmax or (runs_df['last_timestamp'].max() - t0)
-        stepcol = f'(timestamp - {t0})'
+        # Build the "time since start" expression as
+        # CASE rid
+        #   WHEN {rid1} THEN timestamp - {start1}
+        #   WHEN {rid2} THEN timestamp - {start2}
+        #   ...
+        # END
+        rid_clauses = ' '.join(
+            [
+                f"WHEN {row['rid']} THEN timestamp - {int(row['created_at'])}"
+                for _, row in runs_df.iterrows()
+            ]
+        )
+        stepcol = f'(CASE rid {rid_clauses} END)'
+        xmax = xmax or (runs_df['last_timestamp'] - runs_df['created_at']).max()
 
       else:
         assert False, xaxis
@@ -680,18 +691,18 @@ class PgSqlStore:
     df = df.merge(runs_df[['rid'] + groupby], on='rid')
     assert runagg in ('mean', 'min', 'max', 'count', 'median')
     df['runs'] = 1
-    df = df.groupby(groupby + ['bin'], as_index=False).agg({
-        'step': 'max',
-        'value': runagg,
-        'runs': 'sum',
-    })
+    df = df.groupby(groupby + ['bin'], as_index=False).agg(
+        {
+            'step': 'max',
+            'value': runagg,
+            'runs': 'sum',
+        }
+    )
     df = df.sort_values(groupby + ['bin'])
     if complete:
       # Filter out incomplete groups, where runs < total_runs
       runs_df['total_runs'] = 1
-      total_runs = runs_df.groupby(groupby, as_index=False).agg(
-          {'total_runs': 'sum'}
-      )
+      total_runs = runs_df.groupby(groupby, as_index=False).agg({'total_runs': 'sum'})
       df = df.merge(total_runs, on=groupby)
       df = df[df['runs'] == df['total_runs']].copy()
 
@@ -755,7 +766,6 @@ class LoggingConnection(pg.Connection):
       return result
     except Exception as e:
       raise Exception(f'Error in query: {args[0]}\nargs: {args[1:]}') from e
-
 
 
 def clean_float(value: float) -> Optional[float]:
