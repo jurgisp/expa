@@ -18,3 +18,4 @@ fastapi
 uvicorn
 orjson
 pillow
+python-multipart
