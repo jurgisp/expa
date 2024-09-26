@@ -47,7 +47,7 @@ import RunSelector from "./components/RunSelector.vue";
     <div id="body" class="grow min-h-[400px] flex text-xs">
       <ReportSelector class="flex-none w-40" />
       <Report class="grow border-x border-slate-400" />
-      <div class="flex-none w-[350px] flex flex-col">
+      <div class="flex-none w-[400px] flex flex-col">
         <ExperimentSelector
           class="basis-1/2 grow min-h-[100px] border-b border-slate-400"
         />
