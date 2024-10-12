@@ -36,10 +36,11 @@ export interface ExperimentsResponse {
 export function getExperiments(
   project: string,
   filter: string,
-  max_age: number
+  max_age: number,
+  min_steps: number
 ) {
   return api.get<ExperimentsResponse>("/experiments", {
-    params: { project, filter, max_age },
+    params: { project, filter, max_age, min_steps },
   });
 }
 

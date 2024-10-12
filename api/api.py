@@ -32,8 +32,8 @@ import numpy as np
 import pandas as pd
 import pydantic as pyd
 import uvicorn
-from fastapi.middleware import cors, gzip
 from fastapi import HTTPException
+from fastapi.middleware import cors, gzip
 from PIL import Image
 
 import expa.db
@@ -75,23 +75,6 @@ def parse_groupby(groupby: str = fastapi.Query('')) -> list[str]:
 
 def parse_facetby(facetby: str = fastapi.Query('')) -> list[str]:
   return [v for v in facetby.split(',') if v != '']
-
-
-def parse_filter_steps_from(filter: str) -> Optional[int]:
-  """Matches `steps>1m` filter."""
-  match = re.match(r'^steps>(\d+)(k|m)?$', filter.lower())
-  if not match:
-    return None
-  number, multiplier = match.groups()
-  try:
-    number = int(number)
-  except ValueError:
-    return None
-  if multiplier == 'k':
-    number *= 1000
-  elif multiplier == 'm':
-    number *= 1000000
-  return number
 
 
 ##################
@@ -153,10 +136,7 @@ async def log_requests(request: fastapi.Request, call_next):
   response: fastapi.Response = await call_next(request)
   elapsed = int((time.time() - start) * 1000)
   status = response.status_code
-  print(
-      f'{timestamp()}: [response={status} in {elapsed:.0f} ms] '
-      f'{url} (from {client})'
-  )
+  print(f'{timestamp()}: [response={status} in {elapsed:.0f} ms] ' f'{url} (from {client})')
   return response
 
 
@@ -171,7 +151,7 @@ async def ready():
 
 
 @app.get('/experiments')
-async def get_experiments(project: str, filter: str = '', max_age: int = 0):
+async def get_experiments(project: str, filter: str = '', max_age: int = 0, min_steps: int = 0):
   df = await repo.get_experiments(project)
   if not len(df):
     return {'experiments': []}
@@ -183,12 +163,13 @@ async def get_experiments(project: str, filter: str = '', max_age: int = 0):
   if max_age:
     df = df[df['age'] < max_age]  # TODO: push down to SQL
 
+  if min_steps:
+    df = df[df['max_step'] >= min_steps]
+
   # TODO: generalize to some simple query language?
   for filt in filter.lower().split(' and '):
-    steps_from = parse_filter_steps_from(filt)
-    if steps_from:
-      df = df[df['max_step'] >= steps_from]
-    elif filt:
+    filt = filt.strip()
+    if filt:
       df_byname = filter_regex(df, 'name', filt)
       df_bynote = filter_regex(df, 'note', filt)
       df = pd.concat([df_byname, df_bynote]).drop_duplicates()
@@ -223,7 +204,9 @@ async def get_metrics(
   df = await repo.get_metrics(project, xids)
   if len(df):
     df = filter_regex(df, 'metric', filter)
-    df['is_image'] = df['shape'].apply(lambda shape: shape is not None and len(shape.split(',')) == 3 and shape[-1] == '3')
+    df['is_image'] = df['shape'].apply(
+        lambda shape: shape is not None and len(shape.split(',')) == 3 and shape[-1] == '3'
+    )
     df = df[df['is_scalar'] | df['is_image']]
   return {
       'metrics': df.head(limit).to_dict(orient='records'),
@@ -280,10 +263,12 @@ async def plot(
     df['step'] = df['bin']
   df['group'] = df[groupby].astype(str).agg(','.join, axis=1) if groupby else ''
   df['facet'] = df[facetby].astype(str).agg(','.join, axis=1) if facetby else ''
-  df = df.groupby(['facet', 'group'], as_index=False).agg({
-      'step': list,
-      'value': list,
-  })
+  df = df.groupby(['facet', 'group'], as_index=False).agg(
+      {
+          'step': list,
+          'value': list,
+      }
+  )
   df = df.sort_values(['facet', 'group'])
   # TODO: in order to get truly consistent colors, we should calc group_index
   # based on all runs for given filters, whether or not metric has data.
@@ -300,7 +285,7 @@ async def plot(
   }
 
 
-@app.get("/image")
+@app.get('/image')
 async def get_image(
     project: str,
     metric: str,
@@ -320,7 +305,7 @@ async def get_image(
   with io.BytesIO() as buffer:
     image.save(buffer, 'PNG')
     buffer.seek(0)
-    return fastapi.Response(buffer.read(), media_type="image/png")
+    return fastapi.Response(buffer.read(), media_type='image/png')
 
 
 ##################
@@ -341,9 +326,7 @@ class LogMetricsRequest(pyd.BaseModel):
 @app.post('/log_metrics')
 async def log_metrics(r: LogMetricsRequest):
   data = {k: np.asarray(v) for k, v in r.data.items()}
-  await repo.write_metrics(
-      data, r.project, r.user, r.exp, r.run, r.step, r.timestamp
-  )
+  await repo.write_metrics(data, r.project, r.user, r.exp, r.run, r.step, r.timestamp)
 
 
 @app.post('/log_tensors')
@@ -359,9 +342,7 @@ async def process_data(
   contents = await file.read()
   with np.load(io.BytesIO(contents)) as npz:
     data = {k: npz[k] for k in npz}
-  await repo.write_metrics(
-      data, project, user, exp, run, step, timestamp
-  )
+  await repo.write_metrics(data, project, user, exp, run, step, timestamp)
 
 
 class LogParamsRequest(pyd.BaseModel):

@@ -24,6 +24,7 @@ import { cmd } from "@/commands";
 import { formatAge, formatSteps, watchDebounced } from "@/utils";
 
 import Checkbox from "./elements/Checkbox.vue";
+import RadioSelect from "./elements/RadioSelect.vue";
 
 // Filter box
 const filterInput = ref("");
@@ -39,6 +40,9 @@ const age = computed(() => (running.value ? runningMaxAge : 0));
 // Complete stats checkbox
 const statsComplete = ref(false);
 
+// Steps filter
+const steps = ref(0);
+
 // Experiment selection
 const selected = computed({
   get: () => state.experiments,
@@ -47,8 +51,9 @@ const selected = computed({
 
 // Data
 const { data, error, isFetching, refetch } = useQuery({
-  queryKey: ["experiments", computed(() => state.project), filter, age],
-  queryFn: () => getExperiments(state.project, filter.value, age.value),
+  queryKey: ["experiments", computed(() => state.project), filter, age, steps],
+  queryFn: () =>
+    getExperiments(state.project, filter.value, age.value, steps.value),
 });
 watch(data, (data) => {
   if (data) {
@@ -95,7 +100,18 @@ cmd.on("experiments.toggleRunning", () => {
       </div>
       <div class="flex flex-wrap gap-2">
         <Checkbox label="Running" v-model="running" />
-        <Checkbox label="Complete stats" v-model="statsComplete" />
+        <!-- <Checkbox label="Complete stats" v-model="statsComplete" /> -->
+        <span>Steps:</span>
+        <RadioSelect
+          id="stepsRadio"
+          :options="[
+            [0, '0'],
+            [1, '1'],
+            [10000, '10k'],
+            [100000, '100k'],
+          ]"
+          v-model="steps"
+        />
       </div>
     </div>
     <!-- Experiments -->
