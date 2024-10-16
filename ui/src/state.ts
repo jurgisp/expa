@@ -43,6 +43,7 @@ interface Report {
   ymin: string;
   ymax: string;
   complete: boolean;
+  cardsPerRow: string;
 }
 
 interface State {
@@ -69,6 +70,7 @@ const defaultReport: Report = {
   ymin: "",
   ymax: "",
   complete: false,
+  cardsPerRow: "3",
 };
 
 // State (not persisted, reflected in URL)

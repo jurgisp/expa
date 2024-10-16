@@ -46,7 +46,7 @@ import RunSelector from "./components/RunSelector.vue";
     https://github.com/justcaliturner/vue-resizer -->
     <div id="body" class="grow min-h-[400px] flex text-xs">
       <ReportSelector class="flex-none w-40" />
-      <Report class="grow border-x border-slate-400" />
+      <Report class="flex-1 min-w-0 border-x border-slate-400" />
       <div class="flex-none w-[400px] flex flex-col">
         <ExperimentSelector
           class="basis-1/2 grow min-h-[100px] border-b border-slate-400"

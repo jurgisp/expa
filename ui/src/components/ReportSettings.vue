@@ -55,6 +55,7 @@ watchDebounced(xmaxInput, (value) => {
 });
 
 const binsOptions = ["20", "50", "100", "200", "500", "1000"];
+const cardsPerRowOptions = ["1", "2", "3", "4", "5", "6"];
 
 for (let i = 1; i <= 5; i++) {
   cmd.on(`report.settings.bins${i}`, () => {
@@ -155,8 +156,17 @@ for (let i = 1; i <= 5; i++) {
           v-model="facetbyInput"
         />
       </div>
-      <div>
+      <!-- <div>
         <Checkbox label="Hide partial" v-model="state.report.complete" />
+      </div> -->
+      <div>
+        cards:
+        <select
+          class="text-xs text-black px-1 py-0 w-16"
+          v-model="state.report.cardsPerRow"
+        >
+          <option v-for="n in cardsPerRowOptions" :value="n">{{ n }}</option>
+        </select>
       </div>
     </div>
   </div>

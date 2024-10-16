@@ -34,6 +34,7 @@ const unpinnedCards = computed(() => {
 const focusedMetric = ref(null as string | null);
 const globalLegend = ref([] as string[]);
 const showLegend = ref(true);
+const cardsPerRow = computed(() => parseInt(state.report.cardsPerRow));
 
 function getPinnedIndex(metric: string | null): number | null {
   const ix = pinnedCards.value.findIndex((c) => c.metric === metric);
@@ -162,7 +163,11 @@ cmd.on("deselect", unfocusCard);
     </div>
     <div class="flex-grow overflow-auto bg-gray-100">
       <!-- Pinned cards -->
-      <div class="flex flex-wrap gap-1 p-1" v-if="pinnedCards.length > 0">
+      <div
+        class="grid justify-start gap-1 p-1"
+        :style="{ gridTemplateColumns: `repeat(${cardsPerRow}, auto)` }"
+        v-if="pinnedCards.length > 0"
+      >
         <div
           v-for="(card, ix) in pinnedCards"
           :key="card.metric"
@@ -194,7 +199,10 @@ cmd.on("deselect", unfocusCard);
         <span class="text-gray-400"> Search results </span>
       </div>
       <!-- Unpinned metrics -->
-      <div class="flex flex-wrap gap-1 p-1">
+      <div
+        class="grid justify-start gap-1 p-1"
+        :style="{ gridTemplateColumns: `repeat(${cardsPerRow}, auto)` }"
+      >
         <div
           v-for="(card, ix) in unpinnedCards"
           :key="card.metric"
@@ -221,7 +229,9 @@ cmd.on("deselect", unfocusCard);
       v-show="showLegend && globalLegend.length"
     >
       <!-- TODO: show/hide groups on click -->
-      <div class="bg-white text-gray-600 border p-1 pb-0 flex flex-col max-h-[340px]">
+      <div
+        class="bg-white text-gray-600 border p-1 pb-0 flex flex-col max-h-[340px]"
+      >
         <div v-for="(group, ix) in globalLegend" class="flex flex-row">
           <div
             :style="{ backgroundColor: COLORS[ix % COLORS.length] }"
