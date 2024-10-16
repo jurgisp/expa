@@ -152,7 +152,7 @@ function resetZoom(e: MouseEvent) {
     <Line :data="chartData" :options="chartOptions" />
     <!-- Tooltip -->
     <div
-      class="absolute left-0 top-100 w-[330px] translate-x-[-5px] z-10 shadow-md"
+      class="absolute left-0 top-100 min-w-[330px] translate-x-[-5px] z-10 shadow-md"
       v-show="tooltipVisible"
     >
       <div class="bg-white text-gray-600 border p-1 pb-0 flex flex-col">
@@ -164,7 +164,7 @@ function resetZoom(e: MouseEvent) {
             :style="{ backgroundColor: group.color }"
             class="size-3 mr-1"
           ></div>
-          <div class="flex-grow">
+          <div class="flex-grow whitespace-nowrap">
             {{ group.label }}
             <span class="text-gray-400">
               {{ group.hoverX ? "[" + formatSteps(group.hoverX) + "]" : "" }}
