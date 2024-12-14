@@ -107,6 +107,7 @@ cmd.on("experiments.toggleRunning", () => {
           :options="[
             [0, '0'],
             [1, '1'],
+            [1000, '1k'],
             [10000, '10k'],
             [100000, '100k'],
           ]"
