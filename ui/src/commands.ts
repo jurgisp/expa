@@ -25,8 +25,10 @@ function invoke(command: string) {
   cmd.emit(command);
 }
 
-function defineCommand(command: string, key: string) {
-  bindKey(key, () => invoke(command));
+function defineCommand(command: string, key?: string) {
+  if (key && key.length > 0) {
+    bindKey(key, () => invoke(command));
+  }
 }
 
 // Special case for Esc - it either deselects input or fires command
@@ -61,10 +63,15 @@ defineCommand("moveCardUp", "Shift+ArrowLeft");
 defineCommand("focusMetricSearch", "/");
 defineCommand("focusRunFilter", "Cmd+/");
 
-defineCommand("report.settings.bins1", "1");
-defineCommand("report.settings.bins2", "2");
-defineCommand("report.settings.bins3", "3");
-defineCommand("report.settings.bins4", "4");
-defineCommand("report.settings.bins5", "5");
+defineCommand("report.settings.bins1", "");
+defineCommand("report.settings.bins2", "");
+defineCommand("report.settings.bins3", "");
+defineCommand("report.settings.bins4", "");
+defineCommand("report.settings.bins5", "");
 
 defineCommand("experiments.toggleRunning", "r");
+defineCommand("experiments.filterSteps1", "1");
+defineCommand("experiments.filterSteps2", "2");
+defineCommand("experiments.filterSteps3", "3");
+defineCommand("experiments.filterSteps4", "4");
+defineCommand("experiments.filterSteps5", "5");

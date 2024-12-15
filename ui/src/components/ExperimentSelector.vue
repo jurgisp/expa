@@ -83,6 +83,20 @@ cmd.on("refresh", refetch);
 cmd.on("experiments.toggleRunning", () => {
   running.value = !running.value;
 });
+
+const stepsOptions = [
+  [0, "0"],
+  [1, "1"],
+  [1000, "1k"],
+  [10000, "10k"],
+  [100000, "100k"],
+] satisfies [number, string][];
+
+for (let i = 1; i <= stepsOptions.length; i++) {
+  cmd.on(`experiments.filterSteps${i}`, () => {
+    steps.value = stepsOptions[i - 1][0];
+  });
+}
 </script>
 
 <template>
@@ -102,17 +116,7 @@ cmd.on("experiments.toggleRunning", () => {
         <Checkbox label="Running" v-model="running" />
         <!-- <Checkbox label="Complete stats" v-model="statsComplete" /> -->
         <span>Steps:</span>
-        <RadioSelect
-          id="stepsRadio"
-          :options="[
-            [0, '0'],
-            [1, '1'],
-            [1000, '1k'],
-            [10000, '10k'],
-            [100000, '100k'],
-          ]"
-          v-model="steps"
-        />
+        <RadioSelect id="stepsRadio" :options="stepsOptions" v-model="steps" />
       </div>
     </div>
     <!-- Experiments -->
